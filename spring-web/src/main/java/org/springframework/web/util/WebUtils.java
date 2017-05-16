@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2014 the original author or authors.
+ * Copyright 2002-2015 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -174,7 +174,7 @@ public abstract class WebUtils {
 	 * i.e. the value of the "defaultHtmlEscape" context-param in {@code web.xml}
 	 * (if any). Falls back to {@code false} in case of no explicit default given.
 	 * @param servletContext the servlet context of the web application
-	 * @return whether default HTML escaping is enabled (default is false)
+	 * @return whether default HTML escaping is enabled (default is {@code false})
 	 */
 	public static boolean isDefaultHtmlEscape(ServletContext servletContext) {
 		if (servletContext == null) {
@@ -192,14 +192,15 @@ public abstract class WebUtils {
 	 * an actual boolean value specified, allowing to have a context-specific
 	 * default in case of no setting at the global level.
 	 * @param servletContext the servlet context of the web application
-	 * @return whether default HTML escaping is enabled (null = no explicit default)
+	 * @return whether default HTML escaping is enabled for the given application
+	 * ({@code null} = no explicit default)
 	 */
 	public static Boolean getDefaultHtmlEscape(ServletContext servletContext) {
 		if (servletContext == null) {
 			return null;
 		}
 		String param = servletContext.getInitParameter(HTML_ESCAPE_CONTEXT_PARAM);
-		return (StringUtils.hasText(param)? Boolean.valueOf(param) : null);
+		return (StringUtils.hasText(param) ? Boolean.valueOf(param) : null);
 	}
 
 	/**
@@ -708,20 +709,23 @@ public abstract class WebUtils {
 	}
 
 	/**
-	 * Extract the full URL filename (including file extension) from the given request URL path.
-	 * Correctly resolves nested paths such as "/products/view.html" as well.
+	 * Extract the full URL filename (including file extension) from the given
+	 * request URL path. Correctly resolve nested paths such as
+	 * "/products/view.html" and remove any path and or query parameters.
 	 * @param urlPath the request URL path (e.g. "/products/index.html")
 	 * @return the extracted URI filename (e.g. "index.html")
 	 */
 	public static String extractFullFilenameFromUrlPath(String urlPath) {
-		int end = urlPath.indexOf(';');
+		int end = urlPath.indexOf('?');
 		if (end == -1) {
-			end = urlPath.indexOf('?');
+			end = urlPath.indexOf('#');
 			if (end == -1) {
 				end = urlPath.length();
 			}
 		}
 		int begin = urlPath.lastIndexOf('/', end) + 1;
+		int paramIndex = urlPath.indexOf(';', begin);
+		end = (paramIndex != -1 && paramIndex < end ? paramIndex : end);
 		return urlPath.substring(begin, end);
 	}
 
@@ -730,9 +734,9 @@ public abstract class WebUtils {
 	 * like this {@code "q1=a;q1=b;q2=a,b,c"}. The resulting map would contain
 	 * keys {@code "q1"} and {@code "q2"} with values {@code ["a","b"]} and
 	 * {@code ["a","b","c"]} respectively.
-	 *
 	 * @param matrixVariables the unparsed matrix variables string
-	 * @return a map with matrix variable names and values, never {@code null}
+	 * @return a map with matrix variable names and values (never {@code null})
+	 * @since 3.2
 	 */
 	public static MultiValueMap<String, String> parseMatrixVariables(String matrixVariables) {
 		MultiValueMap<String, String> result = new LinkedMultiValueMap<String, String>();

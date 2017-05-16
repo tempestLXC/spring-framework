@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2014 the original author or authors.
+ * Copyright 2002-2016 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -47,7 +47,9 @@ import org.springframework.http.converter.json.MappingJacksonHttpMessageConverte
 import org.springframework.http.converter.support.AllEncompassingFormHttpMessageConverter;
 import org.springframework.http.converter.xml.Jaxb2RootElementHttpMessageConverter;
 import org.springframework.http.converter.xml.SourceHttpMessageConverter;
+import org.springframework.util.AntPathMatcher;
 import org.springframework.util.ClassUtils;
+import org.springframework.util.PathMatcher;
 import org.springframework.validation.Errors;
 import org.springframework.validation.MessageCodesResolver;
 import org.springframework.validation.Validator;
@@ -75,6 +77,7 @@ import org.springframework.web.servlet.mvc.method.annotation.ExceptionHandlerExc
 import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter;
 import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
 import org.springframework.web.servlet.mvc.support.DefaultHandlerExceptionResolver;
+import org.springframework.web.util.UrlPathHelper;
 
 /**
  * This is the main class providing the configuration behind the MVC Java config.
@@ -161,6 +164,8 @@ public class WebMvcConfigurationSupport implements ApplicationContextAware, Serv
 
 	private List<Object> interceptors;
 
+	private PathMatchConfigurer pathMatchConfigurer;
+
 	private ContentNegotiationManager contentNegotiationManager;
 
 	private List<HttpMessageConverter<?>> messageConverters;
@@ -181,6 +186,7 @@ public class WebMvcConfigurationSupport implements ApplicationContextAware, Serv
 		this.servletContext = servletContext;
 	}
 
+
 	/**
 	 * Return a {@link RequestMappingHandlerMapping} ordered at 0 for mapping
 	 * requests to annotated controllers.
@@ -191,6 +197,26 @@ public class WebMvcConfigurationSupport implements ApplicationContextAware, Serv
 		handlerMapping.setOrder(0);
 		handlerMapping.setInterceptors(getInterceptors());
 		handlerMapping.setContentNegotiationManager(mvcContentNegotiationManager());
+
+		PathMatchConfigurer configurer = getPathMatchConfigurer();
+		if (configurer.isUseSuffixPatternMatch() != null) {
+			handlerMapping.setUseSuffixPatternMatch(configurer.isUseSuffixPatternMatch());
+		}
+		if (configurer.isUseRegisteredSuffixPatternMatch() != null) {
+			handlerMapping.setUseRegisteredSuffixPatternMatch(configurer.isUseRegisteredSuffixPatternMatch());
+		}
+		if (configurer.isUseTrailingSlashMatch() != null) {
+			handlerMapping.setUseTrailingSlashMatch(configurer.isUseTrailingSlashMatch());
+		}
+		UrlPathHelper pathHelper = configurer.getUrlPathHelper();
+		if (pathHelper != null) {
+			handlerMapping.setUrlPathHelper(pathHelper);
+		}
+		PathMatcher pathMatcher = configurer.getPathMatcher();
+		if (pathMatcher != null) {
+			handlerMapping.setPathMatcher(pathMatcher);
+		}
+
 		return handlerMapping;
 	}
 
@@ -218,6 +244,53 @@ public class WebMvcConfigurationSupport implements ApplicationContextAware, Serv
 	}
 
 	/**
+	 * Callback for building the {@link PathMatchConfigurer}.
+	 * Delegates to {@link #configurePathMatch}.
+	 * @since 3.2.17
+	 */
+	protected PathMatchConfigurer getPathMatchConfigurer() {
+		if (this.pathMatchConfigurer == null) {
+			this.pathMatchConfigurer = new PathMatchConfigurer();
+			configurePathMatch(this.pathMatchConfigurer);
+		}
+		return this.pathMatchConfigurer;
+	}
+
+	/**
+	 * Override this method to configure path matching options.
+	 * @see PathMatchConfigurer
+	 * @since 3.2.17
+	 */
+	public void configurePathMatch(PathMatchConfigurer configurer) {
+	}
+
+	/**
+	 * Return a global {@link PathMatcher} instance for path matching
+	 * patterns in {@link HandlerMapping}s.
+	 * This instance can be configured using the {@link PathMatchConfigurer}
+	 * in {@link #configurePathMatch(PathMatchConfigurer)}.
+	 * @since 3.2.17
+	 */
+	@Bean
+	public PathMatcher mvcPathMatcher() {
+		PathMatcher pathMatcher = getPathMatchConfigurer().getPathMatcher();
+		return (pathMatcher != null ? pathMatcher : new AntPathMatcher());
+	}
+
+	/**
+	 * Return a global {@link UrlPathHelper} instance for path matching
+	 * patterns in {@link HandlerMapping}s.
+	 * This instance can be configured using the {@link PathMatchConfigurer}
+	 * in {@link #configurePathMatch(PathMatchConfigurer)}.
+	 * @since 3.2.17
+	 */
+	@Bean
+	public UrlPathHelper mvcUrlPathHelper() {
+		UrlPathHelper pathHelper = getPathMatchConfigurer().getUrlPathHelper();
+		return (pathHelper != null ? pathHelper : new UrlPathHelper());
+	}
+
+	/**
 	 * Return a {@link ContentNegotiationManager} instance to use to determine
 	 * requested {@linkplain MediaType media types} in a given request.
 	 */
@@ -238,7 +311,7 @@ public class WebMvcConfigurationSupport implements ApplicationContextAware, Serv
 	}
 
 	protected Map<String, MediaType> getDefaultMediaTypes() {
-		Map<String, MediaType> map = new HashMap<String, MediaType>();
+		Map<String, MediaType> map = new HashMap<String, MediaType>(4);
 		if (romePresent) {
 			map.put("atom", MediaType.APPLICATION_ATOM_XML);
 			map.put("rss", MediaType.valueOf("application/rss+xml"));
@@ -272,6 +345,8 @@ public class WebMvcConfigurationSupport implements ApplicationContextAware, Serv
 		AbstractHandlerMapping handlerMapping = registry.getHandlerMapping();
 		handlerMapping = (handlerMapping != null ? handlerMapping : new EmptyHandlerMapping());
 		handlerMapping.setInterceptors(getInterceptors());
+		handlerMapping.setPathMatcher(mvcPathMatcher());
+		handlerMapping.setUrlPathHelper(mvcUrlPathHelper());
 		return handlerMapping;
 	}
 
@@ -305,7 +380,13 @@ public class WebMvcConfigurationSupport implements ApplicationContextAware, Serv
 		addResourceHandlers(registry);
 
 		AbstractHandlerMapping handlerMapping = registry.getHandlerMapping();
-		handlerMapping = (handlerMapping != null ? handlerMapping : new EmptyHandlerMapping());
+		if (handlerMapping != null) {
+			handlerMapping.setPathMatcher(mvcPathMatcher());
+			handlerMapping.setUrlPathHelper(mvcUrlPathHelper());
+		}
+		else {
+			handlerMapping = new EmptyHandlerMapping();
+		}
 		return handlerMapping;
 	}
 
@@ -364,7 +445,6 @@ public class WebMvcConfigurationSupport implements ApplicationContextAware, Serv
 
 		AsyncSupportConfigurer configurer = new AsyncSupportConfigurer();
 		configureAsyncSupport(configurer);
-
 		if (configurer.getTaskExecutor() != null) {
 			adapter.setTaskExecutor(configurer.getTaskExecutor());
 		}
@@ -390,6 +470,20 @@ public class WebMvcConfigurationSupport implements ApplicationContextAware, Serv
 	}
 
 	/**
+	 * Override this method to provide a custom {@link MessageCodesResolver}.
+	 */
+	protected MessageCodesResolver getMessageCodesResolver() {
+		return null;
+	}
+
+	/**
+	 * Override this method to configure asynchronous request processing options.
+	 * @see AsyncSupportConfigurer
+	 */
+	protected void configureAsyncSupport(AsyncSupportConfigurer configurer) {
+	}
+
+	/**
 	 * Return a {@link FormattingConversionService} for use with annotated
 	 * controller methods and the {@code spring:eval} JSP tag.
 	 * Also see {@link #addFormatters} as an alternative to overriding this method.
@@ -399,6 +493,12 @@ public class WebMvcConfigurationSupport implements ApplicationContextAware, Serv
 		FormattingConversionService conversionService = new DefaultFormattingConversionService();
 		addFormatters(conversionService);
 		return conversionService;
+	}
+
+	/**
+	 * Override this method to add custom {@link Converter}s and {@link Formatter}s.
+	 */
+	protected void addFormatters(FormatterRegistry registry) {
 	}
 
 	/**
@@ -425,7 +525,7 @@ public class WebMvcConfigurationSupport implements ApplicationContextAware, Serv
 				catch (LinkageError ex) {
 					throw new BeanInitializationException("Could not load default validator class", ex);
 				}
-				validator = (Validator) BeanUtils.instantiate(clazz);
+				validator = (Validator) BeanUtils.instantiateClass(clazz);
 			}
 			else {
 				validator = new NoOpValidator();
@@ -438,13 +538,6 @@ public class WebMvcConfigurationSupport implements ApplicationContextAware, Serv
 	 * Override this method to provide a custom {@link Validator}.
 	 */
 	protected Validator getValidator() {
-		return null;
-	}
-
-	/**
-	 * Override this method to provide a custom {@link MessageCodesResolver}.
-	 */
-	protected MessageCodesResolver getMessageCodesResolver() {
 		return null;
 	}
 
@@ -540,19 +633,6 @@ public class WebMvcConfigurationSupport implements ApplicationContextAware, Serv
 	}
 
 	/**
-	 * Override this method to add custom {@link Converter}s and {@link Formatter}s.
-	 */
-	protected void addFormatters(FormatterRegistry registry) {
-	}
-
-	/**
-	 * Override this method to configure asynchronous request processing options.
-	 * @see AsyncSupportConfigurer
-	 */
-	public void configureAsyncSupport(AsyncSupportConfigurer configurer) {
-	}
-
-	/**
 	 * Returns a {@link HttpRequestHandlerAdapter} for processing requests
 	 * with {@link HttpRequestHandler}s.
 	 */
@@ -584,11 +664,9 @@ public class WebMvcConfigurationSupport implements ApplicationContextAware, Serv
 	public HandlerExceptionResolver handlerExceptionResolver() {
 		List<HandlerExceptionResolver> exceptionResolvers = new ArrayList<HandlerExceptionResolver>();
 		configureHandlerExceptionResolvers(exceptionResolvers);
-
 		if (exceptionResolvers.isEmpty()) {
 			addDefaultHandlerExceptionResolvers(exceptionResolvers);
 		}
-
 		HandlerExceptionResolverComposite composite = new HandlerExceptionResolverComposite();
 		composite.setOrder(0);
 		composite.setExceptionResolvers(exceptionResolvers);

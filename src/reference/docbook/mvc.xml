@@ -2751,7 +2751,7 @@ deferredResult.setResult(data);
     <para>The following example shows how to configure an interceptor:</para>
 
     <programlisting language="xml">&lt;beans&gt;
-  &lt;bean id="handlerMapping" class="org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping"&gt;
+  &lt;bean class="org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping"&gt;
     &lt;property name="interceptors"&gt;
       &lt;bean class="example.MyInterceptor"/&gt;
     &lt;/property&gt;
@@ -5150,7 +5150,7 @@ public class WebConfig extends WebMvcConfigurerAdapter {
       content negotiation purposes.</para>
 
       <para>Note that <classname>ContentNegotiatingViewResolver</classname>
-      now can also be configured with a <code>ContentNegotiatingViewResolver</code>,
+      now can also be configured with a <classname>ContentNegotiationManager</classname>,
       so you can use one instance throughout Spring MVC.</para>
 
       <para>In more advanced cases, it may be useful to configure

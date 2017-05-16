@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2012 the original author or authors.
+ * Copyright 2002-2016 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,7 +28,7 @@ import org.springframework.web.servlet.HandlerExceptionResolver;
 
 /**
  * An implementation of {@link WebMvcConfigurer} with empty methods allowing
- * sub-classes to override only the methods they're interested in.
+ * subclasses to override only the methods they're interested in.
  *
  * @author Rossen Stoyanchev
  * @since 3.1
@@ -51,14 +51,6 @@ public abstract class WebMvcConfigurerAdapter implements WebMvcConfigurer {
 
 	/**
 	 * {@inheritDoc}
-	 * <p>This implementation returns {@code null}
-	 */
-	public Validator getValidator() {
-		return null;
-	}
-
-	/**
-	 * {@inheritDoc}
 	 * <p>This implementation is empty.
 	 */
 	public void configureContentNegotiation(ContentNegotiationConfigurer configurer) {
@@ -69,6 +61,13 @@ public abstract class WebMvcConfigurerAdapter implements WebMvcConfigurer {
 	 * <p>This implementation is empty.
 	 */
 	public void configureAsyncSupport(AsyncSupportConfigurer configurer) {
+	}
+
+	/**
+	 * {@inheritDoc}
+	 * <p>This implementation is empty.
+	 */
+	public void configurePathMatch(PathMatchConfigurer configurer) {
 	}
 
 	/**
@@ -90,14 +89,6 @@ public abstract class WebMvcConfigurerAdapter implements WebMvcConfigurer {
 	 * <p>This implementation is empty.
 	 */
 	public void configureHandlerExceptionResolvers(List<HandlerExceptionResolver> exceptionResolvers) {
-	}
-
-	/**
-	 * {@inheritDoc}
-	 * <p>This implementation is empty.
-	 */
-	public MessageCodesResolver getMessageCodesResolver() {
-		return null;
 	}
 
 	/**
@@ -126,6 +117,22 @@ public abstract class WebMvcConfigurerAdapter implements WebMvcConfigurer {
 	 * <p>This implementation is empty.
 	 */
 	public void configureDefaultServletHandling(DefaultServletHandlerConfigurer configurer) {
+	}
+
+	/**
+	 * {@inheritDoc}
+	 * <p>This implementation returns {@code null}.
+	 */
+	public Validator getValidator() {
+		return null;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 * <p>This implementation returns {@code null}.
+	 */
+	public MessageCodesResolver getMessageCodesResolver() {
+		return null;
 	}
 
 }
