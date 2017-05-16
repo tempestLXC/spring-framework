@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2012 the original author or authors.
+ * Copyright 2002-2016 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,15 +17,15 @@ package org.springframework.test.web.client.match;
 
 import java.io.IOException;
 import java.util.Map;
-
 import javax.xml.xpath.XPathExpressionException;
 
 import org.hamcrest.Matcher;
+import org.w3c.dom.Node;
+
 import org.springframework.http.client.ClientHttpRequest;
 import org.springframework.mock.http.client.MockClientHttpRequest;
 import org.springframework.test.util.XpathExpectationsHelper;
 import org.springframework.test.web.client.RequestMatcher;
-import org.w3c.dom.Node;
 
 /**
  * Factory methods for request content {@code RequestMatcher}'s using an XPath
@@ -44,12 +44,10 @@ public class XpathRequestMatchers {
 	 * Class constructor, not for direct instantiation. Use
 	 * {@link MockRestRequestMatchers#xpath(String, Object...)} or
 	 * {@link MockRestRequestMatchers#xpath(String, Map, Object...)}.
-	 *
 	 * @param expression the XPath expression
 	 * @param namespaces XML namespaces referenced in the XPath expression, or {@code null}
 	 * @param args arguments to parameterize the XPath expression with using the
 	 * formatting specifiers defined in {@link String#format(String, Object...)}
-	 *
 	 * @throws XPathExpressionException
 	 */
 	protected XpathRequestMatchers(String expression, Map<String, String> namespaces, Object ... args)
@@ -57,6 +55,7 @@ public class XpathRequestMatchers {
 
 		this.xpathHelper = new XpathExpectationsHelper(expression, namespaces, args);
 	}
+
 
 	/**
 	 * Apply the XPath and assert it with the given {@code Matcher<Node>}.
@@ -196,7 +195,6 @@ public class XpathRequestMatchers {
 		}
 
 		protected abstract void matchInternal(MockClientHttpRequest request) throws Exception;
-
 	}
 
 }

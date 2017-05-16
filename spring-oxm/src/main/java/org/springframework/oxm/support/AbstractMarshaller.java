@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2014 the original author or authors.
+ * Copyright 2002-2016 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -41,6 +41,7 @@ import javax.xml.transform.stream.StreamSource;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.w3c.dom.Document;
 import org.w3c.dom.Node;
 import org.xml.sax.ContentHandler;
 import org.xml.sax.EntityResolver;
@@ -71,6 +72,8 @@ public abstract class AbstractMarshaller implements Marshaller, Unmarshaller {
 	/** Logger available to subclasses */
 	protected final Log logger = LogFactory.getLog(getClass());
 
+	private boolean supportDtd = false;
+
 	private boolean processExternalEntities = false;
 
 	private DocumentBuilderFactory documentBuilderFactory;
@@ -79,15 +82,35 @@ public abstract class AbstractMarshaller implements Marshaller, Unmarshaller {
 
 
 	/**
+	 * Indicates whether DTD parsing should be supported.
+	 * <p>Default is {@code false} meaning that DTD is disabled.
+	 */
+	public void setSupportDtd(boolean supportDtd) {
+		this.supportDtd = supportDtd;
+	}
+
+	/**
+	 * Whether DTD parsing is supported.
+	 */
+	public boolean isSupportDtd() {
+		return this.supportDtd;
+	}
+
+	/**
 	 * Indicates whether external XML entities are processed when unmarshalling.
 	 * <p>Default is {@code false}, meaning that external entities are not resolved.
 	 * Note that processing of external entities will only be enabled/disabled when the
 	 * {@code Source} passed to {@link #unmarshal(Source)} is a {@link SAXSource} or
 	 * {@link StreamSource}. It has no effect for {@link DOMSource} or {@link StAXSource}
 	 * instances.
+	 * <p><strong>Note:</strong> setting this option to {@code true} also
+	 * automatically sets {@link #setSupportDtd} to {@code true}.
 	 */
 	public void setProcessExternalEntities(boolean processExternalEntities) {
 		this.processExternalEntities = processExternalEntities;
+		if (processExternalEntities) {
+			setSupportDtd(true);
+		}
 	}
 
 	/**
@@ -98,6 +121,28 @@ public abstract class AbstractMarshaller implements Marshaller, Unmarshaller {
 		return this.processExternalEntities;
 	}
 
+
+	/**
+	 * Build a new {@link Document} from this marshaller's {@link DocumentBuilderFactory},
+	 * as a placeholder for a DOM node.
+	 * @see #createDocumentBuilderFactory()
+	 * @see #createDocumentBuilder(DocumentBuilderFactory)
+	 */
+	protected Document buildDocument() {
+		try {
+			DocumentBuilder documentBuilder;
+			synchronized (this.documentBuilderFactoryMonitor) {
+				if (this.documentBuilderFactory == null) {
+					this.documentBuilderFactory = createDocumentBuilderFactory();
+				}
+				documentBuilder = createDocumentBuilder(this.documentBuilderFactory);
+			}
+			return documentBuilder.newDocument();
+		}
+		catch (ParserConfigurationException ex) {
+			throw new UnmarshallingFailureException("Could not create document placeholder: " + ex.getMessage(), ex);
+		}
+	}
 
 	/**
 	 * Create a {@code DocumentBuilder} that this marshaller will use for creating
@@ -111,6 +156,8 @@ public abstract class AbstractMarshaller implements Marshaller, Unmarshaller {
 		DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
 		factory.setValidating(false);
 		factory.setNamespaceAware(true);
+		factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", !isSupportDtd());
+		factory.setFeature("http://xml.org/sax/features/external-general-entities", isProcessExternalEntities());
 		return factory;
 	}
 
@@ -125,7 +172,11 @@ public abstract class AbstractMarshaller implements Marshaller, Unmarshaller {
 	protected DocumentBuilder createDocumentBuilder(DocumentBuilderFactory factory)
 			throws ParserConfigurationException {
 
-		return factory.newDocumentBuilder();
+		DocumentBuilder documentBuilder = factory.newDocumentBuilder();
+		if (!isProcessExternalEntities()) {
+			documentBuilder.setEntityResolver(NO_OP_ENTITY_RESOLVER);
+		}
+		return documentBuilder;
 	}
 
 	/**
@@ -135,6 +186,7 @@ public abstract class AbstractMarshaller implements Marshaller, Unmarshaller {
 	 */
 	protected XMLReader createXmlReader() throws SAXException {
 		XMLReader xmlReader = XMLReaderFactory.createXMLReader();
+		xmlReader.setFeature("http://apache.org/xml/features/disallow-doctype-decl", !isSupportDtd());
 		xmlReader.setFeature("http://xml.org/sax/features/external-general-entities", isProcessExternalEntities());
 		if (!isProcessExternalEntities()) {
 			xmlReader.setEntityResolver(NO_OP_ENTITY_RESOLVER);
@@ -197,19 +249,7 @@ public abstract class AbstractMarshaller implements Marshaller, Unmarshaller {
 	 */
 	protected void marshalDomResult(Object graph, DOMResult domResult) throws XmlMappingException {
 		if (domResult.getNode() == null) {
-			try {
-				synchronized (this.documentBuilderFactoryMonitor) {
-					if (this.documentBuilderFactory == null) {
-						this.documentBuilderFactory = createDocumentBuilderFactory();
-					}
-				}
-				DocumentBuilder documentBuilder = createDocumentBuilder(this.documentBuilderFactory);
-				domResult.setNode(documentBuilder.newDocument());
-			}
-			catch (ParserConfigurationException ex) {
-				throw new UnmarshallingFailureException(
-						"Could not create document placeholder for DOMResult: " + ex.getMessage(), ex);
-			}
+			domResult.setNode(buildDocument());
 		}
 		marshalDomNode(graph, domResult.getNode());
 	}
@@ -220,7 +260,7 @@ public abstract class AbstractMarshaller implements Marshaller, Unmarshaller {
 	 * {@code marshalXMLEventConsumer}, depending on what is contained in the
 	 * {@code StaxResult}.
 	 * @param graph the root of the object graph to marshal
-	 * @param staxResult a Spring {@link org.springframework.util.xml.StaxSource} or JAXP 1.4 {@link StAXSource}
+	 * @param staxResult a JAXP 1.4 {@link StAXSource}
 	 * @throws XmlMappingException if the given object cannot be marshalled to the result
 	 * @throws IllegalArgumentException if the {@code domResult} is empty
 	 * @see #marshalDomNode(Object, org.w3c.dom.Node)
@@ -329,21 +369,19 @@ public abstract class AbstractMarshaller implements Marshaller, Unmarshaller {
 	 */
 	protected Object unmarshalDomSource(DOMSource domSource) throws XmlMappingException {
 		if (domSource.getNode() == null) {
-			try {
-				synchronized (this.documentBuilderFactoryMonitor) {
-					if (this.documentBuilderFactory == null) {
-						this.documentBuilderFactory = createDocumentBuilderFactory();
-					}
-				}
-				DocumentBuilder documentBuilder = createDocumentBuilder(this.documentBuilderFactory);
-				domSource.setNode(documentBuilder.newDocument());
-			}
-			catch (ParserConfigurationException ex) {
-				throw new UnmarshallingFailureException(
-						"Could not create document placeholder for DOMSource: " + ex.getMessage(), ex);
-			}
+			domSource.setNode(buildDocument());
 		}
-		return unmarshalDomNode(domSource.getNode());
+		try {
+			return unmarshalDomNode(domSource.getNode());
+		}
+		catch (NullPointerException ex) {
+			if (!isSupportDtd()) {
+				throw new UnmarshallingFailureException("NPE while unmarshalling. " +
+						"This can happen on JDK 1.6 due to the presence of DTD " +
+						"declarations, which are disabled.", ex);
+			}
+			throw ex;
+		}
 	}
 
 	/**
@@ -391,7 +429,17 @@ public abstract class AbstractMarshaller implements Marshaller, Unmarshaller {
 		if (saxSource.getInputSource() == null) {
 			saxSource.setInputSource(new InputSource());
 		}
-		return unmarshalSaxReader(saxSource.getXMLReader(), saxSource.getInputSource());
+		try {
+			return unmarshalSaxReader(saxSource.getXMLReader(), saxSource.getInputSource());
+		}
+		catch (NullPointerException ex) {
+			if (!isSupportDtd()) {
+				throw new UnmarshallingFailureException("NPE while unmarshalling. " +
+						"This can happen on JDK 1.6 due to the presence of DTD " +
+						"declarations, which are disabled.");
+			}
+			throw ex;
+		}
 	}
 
 	/**
@@ -404,7 +452,7 @@ public abstract class AbstractMarshaller implements Marshaller, Unmarshaller {
 	 */
 	protected Object unmarshalStreamSource(StreamSource streamSource) throws XmlMappingException, IOException {
 		if (streamSource.getInputStream() != null) {
-			if (isProcessExternalEntities()) {
+			if (isProcessExternalEntities() && isSupportDtd()) {
 				return unmarshalInputStream(streamSource.getInputStream());
 			}
 			else {
@@ -414,7 +462,7 @@ public abstract class AbstractMarshaller implements Marshaller, Unmarshaller {
 			}
 		}
 		else if (streamSource.getReader() != null) {
-			if (isProcessExternalEntities()) {
+			if (isProcessExternalEntities() && isSupportDtd()) {
 				return unmarshalReader(streamSource.getReader());
 			}
 			else {

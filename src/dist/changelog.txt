@@ -2,6 +2,111 @@ SPRING FRAMEWORK CHANGELOG
 ===========================
 http://www.spring.io
 
+Changes in version 3.2.18 (2016-12-21)
+-------------------------------------
+fixed Constructor sets the source incorrectly in org.springframework.beans.PropertyValue (SPR-8337)
+fixed ObjectToObjectConverter should be able to use constructors on non-public classes (SPR-14304)
+fixed Async advisor retrieval blocks when triggered by singleton init method (SPR-14324)
+fixed Deadlock while creating a new thread on bean initialization with transactional code invocation (SPR-14388)
+fixed CronSequenceGenerator causes StackOverflowError with reversed range values (SPR-14462)
+fixed Ineffective synchronization in StandardTypeConverter constructor (SPR-14465)
+fixed ResourcePatternUtils.getResourcePatternResolver does not accept null arg (SPR-14500)
+fixed LinkedCaseInsensitiveMap doesn't override HashMap.clone() (SPR-14509)
+fixed StackOverflowError for advisor search against factory-bean reference to FactoryBean (SPR-14551)
+fixed StringUtils.parseLocaleString(): does not parse locale string in java 7 for Serbian (Latin) (SPR-14718)
+fixed Concurrency problem in DeferredResult: potential double execution of handleResult (SPR-14978)
+fixed MBeanExporter fails against null beans (SPR-15031)
+improved ModelAndViewResolver still refers to raw Class type (SPR-7860)
+improved Allow method inlining of ObjectUtils.nullSafeEquals() (SPR-14349)
+improved Normalize resource URL in ResourceServlet (SPR-14946)
+improved documentation for @Bean(autowire=NO) (SPR-14282)
+improved documentation Label "for" attribute is wrongly documented as required (SPR-14287)
+improved documentation of SpEL behavior when comparing value to null (SPR-14361) 
+improved documentation of cache abstraction (SPR-14399)
+improved documentation og SpEL and Date Literals (SPR-14987)
+
+
+Changes in version 3.2.17 (2016-05-06)
+-------------------------------------
+fixed AbstractRequestLoggingFilter appends null query string (SPR-14244)
+fixed Deadlock possible with AspectJ aspects and multi-threading (SPR-14241)
+fixed NPE thrown when calling methods with an empty @Caching annotation (SPR-14162)
+fixed @RequestHeader HttpHeaders fails with NPE against null header value (SPR-14091)
+fixed ModelAndView is replaced when a RedirectView is used (SPR-14045)
+fixed Scripted beans not updated after a script compilation error in getScriptedObjectType (SPR-14007)
+fixed TimerManagerTaskScheduler.TimerScheduledFuture.getDelay is inverted (SPR-13977)
+fixed AbstractMarshaller's DocumentBuilderFactory instance may be used by several threads simultaneously (SPR-13935)
+fixed ReflectiveMethodResolver chooses parent class over child for static methods (SPR-13918)
+fixed NullPointerException while building error message in InvocableHandlerMethod (SPR-13917)
+fixed Handle RejectedExecutionException in WebAsyncManager (SPR-13836)
+improved MVC config path config options (SPR-14186)
+improved local resolution of Quartz XSD (SPR-13706)
+improved SimpleTriggerFactoryBean and CronTriggerFactoryBean usage without jobDetail (SPR-13604)
+improved XML example javadoc of @EnableScheduling (SPR-14145)
+improved documentation example of MessageSource (SPR-14003)
+improved documentation of ResponseEntityExceptionHandler.handleExceptionInternal (SPR-13869)
+improved documentation at section 17.4 Handler mappings (SPR-13832)
+
+
+Changes in version 3.2.16 (2015-12-17)
+-------------------------------------
+
+fixed Jdbc4SqlXmlHandler should return null instead of NPE (SPR-13782)
+fixed AbstractApplicationContext.isRunning throws IllegalStateException when called too early (SPR-13667)
+fixed CommonsMultipartFile.getOriginalFilename() does not strip file path properly (SPR-13662)
+fixed Content-Disposition added for @ResponseBody methods explicitly mapped to ".html" or other extensions (SPR-13629)
+fixed AbstractJdbcCall's compiled variable should be declared as volatile (SPR-13617)
+fixed Content-Disposition header causes download in browser for Spring Boot Actuator endpoints (SPR-13587)
+improved support for Microsoft SQL Server driver version 4 and above (SPR-13772)
+improved BeanFactoryAnnotationUtils.qualifiedBeanOfType should not instantiate all beans of given type before checking qualifier (SPR-13741)
+improved BeansException warn logging after startup failure (SPR-13663)
+improved Content-Disposition with fixed file name "f.txt" so that it's less confusing (SPR-13643)
+improved CallMetaDataContext to avoid NPE for anonymous SqlParameter (SPR-13628)
+improved Content-Disposition header to be skipped when status != 2xx (SPR-13588)
+improved documentation of Jackson2ObjectMapperFactoryBean (SPR-13765)
+improved fix cron trigger example in reference documentation (SPR-10474)
+
+
+Changes in version 3.2.15 (2015-10-15)
+-------------------------------------
+
+protect against RFD exploits, see http://pivotal.io/security/cve-2015-5211 (SPR-13548)
+fixed whether HttpInputMessage.getBody() is allowed to return null (SPR-13563)
+fixed JCacheCache doesn't recognize null values in other JVMs (SPR-13553)
+fixed AbstractEmbeddedDatabaseConfigurer.shutdown does not close JDBC resources (SPR-13474)
+fixed DeferredResult not thread-safe for isSetOrExpired call (SPR-13451)
+fixed ConcurrentModificationException when doing a merge on AbstractEnvironment (SPR-13213)
+avoid ambiguous property warning for setter methods with multiple parameters (SPR-13349)
+improved documentation of ContentNegotiationManager reference in MVC chapter (SPR-13558)
+improved documentation on readonly and disabled flags in spring-form.tld (SPR-13397)
+improved documentation of AUTO_ACKNOWLEDGE semantics with SimpleMessageListenerContainer (SPR-13278)
+
+
+Changes in version 3.2.14 (2015-06-30)
+-------------------------------------
+
+fixed disable DTD by default when parsing untrusted XML input (SPR-13136)
+fixed remoting over JMS with receiveTimeout blocks service forever (SPR-13052)
+fixed NPE when using @args as pointcut (SPR-13102)
+fixed NPE for alias resolved to null in SimpleAliasRegistry (SPR-13106)
+fixed NPE if CustomBooleanEditor is configured with allowEmpty=false (SPR-13010)
+fixed infinite loop in PatternMatchUtils (SPR-12971)
+fixed infinite loop when CronSequenceGenerator constructor is called with invalid increments (SPR-12871)
+fixed incorrect value in InvalidPropertyException message from BeanWrapperImpl.setPropertyValue (SPR-12866)
+fixed SpEL chooses wrong method to invoke when varargs method is present (SPR-12803)
+fixed StandardMultipartHttpServletRequest.StandardMultipartFile not serializable (SPR-12975)
+fixed EncodedResource does not include charset in equals() implementation (SPR-12767)
+fixed Specified MVC resource at root level not considered "under location" (SPR-12747)
+fixed deadlock publishing event while creating listener bean (SPR-12739)
+fixed NPE in ServletUriComponentsBuilder#initFromRequest (SPR-12723)
+fixed @Scheduled handling with multiple proxied target classes implementing the same interface (SPR-12709)
+upgraded to ASM 5.0.4 (SPR-13039)
+improved documentation of Lifecycle callbacks (SPR-12855)
+improved documentation of null handling in Converter (SPR-12870)
+improved documentation of acknowledgment modes (SPR-12705)
+improved javadoc of ModelAttributeMethodProcessor.validateIfApplicable (SPR-12655)
+improved documentation of SimpleJdbcInsert (SPR-12639)
+
 
 Changes in version 3.2.13 (2014-12-30)
 -------------------------------------

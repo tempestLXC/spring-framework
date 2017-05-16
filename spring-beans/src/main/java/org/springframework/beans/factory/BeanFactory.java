@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2014 the original author or authors.
+ * Copyright 2002-2016 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -66,24 +66,27 @@ import org.springframework.beans.BeansException;
  * 1. BeanNameAware's {@code setBeanName}<br>
  * 2. BeanClassLoaderAware's {@code setBeanClassLoader}<br>
  * 3. BeanFactoryAware's {@code setBeanFactory}<br>
- * 4. ResourceLoaderAware's {@code setResourceLoader}
+ * 4. EnvironmentAware's {@code setEnvironment}
+ * 5. EmbeddedValueResolverAware's {@code setEmbeddedValueResolver}
+ * 6. ResourceLoaderAware's {@code setResourceLoader}
  * (only applicable when running in an application context)<br>
- * 5. ApplicationEventPublisherAware's {@code setApplicationEventPublisher}
+ * 7. ApplicationEventPublisherAware's {@code setApplicationEventPublisher}
  * (only applicable when running in an application context)<br>
- * 6. MessageSourceAware's {@code setMessageSource}
+ * 8. MessageSourceAware's {@code setMessageSource}
  * (only applicable when running in an application context)<br>
- * 7. ApplicationContextAware's {@code setApplicationContext}
+ * 9. ApplicationContextAware's {@code setApplicationContext}
  * (only applicable when running in an application context)<br>
- * 8. ServletContextAware's {@code setServletContext}
+ * 10. ServletContextAware's {@code setServletContext}
  * (only applicable when running in a web application context)<br>
- * 9. {@code postProcessBeforeInitialization} methods of BeanPostProcessors<br>
- * 10. InitializingBean's {@code afterPropertiesSet}<br>
- * 11. a custom init-method definition<br>
- * 12. {@code postProcessAfterInitialization} methods of BeanPostProcessors
+ * 11. {@code postProcessBeforeInitialization} methods of BeanPostProcessors<br>
+ * 12. InitializingBean's {@code afterPropertiesSet}<br>
+ * 13. a custom init-method definition<br>
+ * 14. {@code postProcessAfterInitialization} methods of BeanPostProcessors
  *
  * <p>On shutdown of a bean factory, the following lifecycle methods apply:<br>
- * 1. DisposableBean's {@code destroy}<br>
- * 2. a custom destroy-method definition
+ * 1. {@code postProcessBeforeDestruction} methods of DestructionAwareBeanPostProcessors
+ * 2. DisposableBean's {@code destroy}<br>
+ * 3. a custom destroy-method definition
  *
  * @author Rod Johnson
  * @author Juergen Hoeller
@@ -113,6 +116,7 @@ public interface BeanFactory {
 	 * will return the factory, not the instance returned by the factory.
 	 */
 	String FACTORY_BEAN_PREFIX = "&";
+
 
 	/**
 	 * Return an instance, which may be shared or independent, of the specified bean.
@@ -151,15 +155,16 @@ public interface BeanFactory {
 
 	/**
 	 * Return the bean instance that uniquely matches the given object type, if any.
-	 * @param requiredType type the bean must match; can be an interface or superclass.
-	 * {@code null} is disallowed.
 	 * <p>This method goes into {@link ListableBeanFactory} by-type lookup territory
 	 * but may also be translated into a conventional by-name lookup based on the name
 	 * of the given type. For more extensive retrieval operations across sets of beans,
 	 * use {@link ListableBeanFactory} and/or {@link BeanFactoryUtils}.
+	 * @param requiredType type the bean must match; can be an interface or superclass.
+	 * {@code null} is disallowed.
 	 * @return an instance of the single bean matching the required type
 	 * @throws NoSuchBeanDefinitionException if no bean of the given type was found
 	 * @throws NoUniqueBeanDefinitionException if more than one bean of the given type was found
+	 * @throws BeansException if the bean could not be created
 	 * @since 3.0
 	 * @see ListableBeanFactory
 	 */
@@ -170,7 +175,7 @@ public interface BeanFactory {
 	 * <p>Allows for specifying explicit constructor arguments / factory method arguments,
 	 * overriding the specified default arguments (if any) in the bean definition.
 	 * @param name the name of the bean to retrieve
-	 * @param args arguments to use if creating a prototype using explicit arguments
+	 * @param args arguments to use when creating a prototype using explicit arguments
 	 * @return an instance of the bean
 	 * @throws NoSuchBeanDefinitionException if there is no such bean definition
 	 * @throws BeanDefinitionStoreException if arguments have been given but

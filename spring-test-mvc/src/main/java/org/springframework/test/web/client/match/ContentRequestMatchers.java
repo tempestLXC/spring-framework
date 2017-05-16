@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2013 the original author or authors.
+ * Copyright 2002-2016 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,24 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.springframework.test.web.client.match;
 
-import static org.springframework.test.util.AssertionErrors.assertEquals;
-import static org.springframework.test.util.AssertionErrors.assertTrue;
-import static org.springframework.test.util.MatcherAssertionErrors.assertThat;
-
 import java.io.IOException;
-
 import javax.xml.transform.Source;
 import javax.xml.transform.dom.DOMSource;
 
 import org.hamcrest.Matcher;
+import org.w3c.dom.Node;
+
 import org.springframework.http.MediaType;
 import org.springframework.http.client.ClientHttpRequest;
 import org.springframework.mock.http.client.MockClientHttpRequest;
 import org.springframework.test.util.XmlExpectationsHelper;
 import org.springframework.test.web.client.RequestMatcher;
-import org.w3c.dom.Node;
+
+import static org.hamcrest.MatcherAssert.*;
+import static org.springframework.test.util.AssertionErrors.*;
 
 /**
  * Factory for request content {@code RequestMatcher}'s. An instance of this
@@ -51,6 +51,7 @@ public class ContentRequestMatchers {
 	protected ContentRequestMatchers() {
 		this.xmlHelper = new XmlExpectationsHelper();
 	}
+
 
 	/**
 	 * Assert the request content type as a String.
@@ -135,10 +136,8 @@ public class ContentRequestMatchers {
 	 * Parse the request body and the given String as XML and assert that the
 	 * two are "similar" - i.e. they contain the same elements and attributes
 	 * regardless of order.
-	 *
 	 * <p>Use of this matcher assumes the
 	 * <a href="http://xmlunit.sourceforge.net/">XMLUnit<a/> library is available.
-	 *
 	 * @param expectedXmlContent the expected XML content
 	 */
 	public RequestMatcher xml(final String expectedXmlContent) {
@@ -175,6 +174,7 @@ public class ContentRequestMatchers {
 		};
 	}
 
+
 	/**
 	 * Abstract base class for XML {@link RequestMatcher}'s.
 	 */
@@ -185,12 +185,12 @@ public class ContentRequestMatchers {
 				MockClientHttpRequest mockRequest = (MockClientHttpRequest) request;
 				matchInternal(mockRequest);
 			}
-			catch (Exception e) {
-				throw new AssertionError("Failed to parse expected or actual XML request content: " + e.getMessage());
+			catch (Exception ex) {
+				throw new AssertionError("Failed to parse expected or actual XML request content: " + ex.getMessage());
 			}
 		}
 
 		protected abstract void matchInternal(MockClientHttpRequest request) throws Exception;
-
 	}
+
 }

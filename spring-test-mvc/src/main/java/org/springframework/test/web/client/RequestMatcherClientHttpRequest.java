@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2012 the original author or authors.
+ * Copyright 2002-2016 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.springframework.test.web.client;
 
 import java.io.IOException;
@@ -45,6 +46,7 @@ class RequestMatcherClientHttpRequest extends MockClientHttpRequest implements R
 		this.requestMatchers.add(requestMatcher);
 	}
 
+
 	public ResponseActions andExpect(RequestMatcher requestMatcher) {
 		Assert.notNull(requestMatcher, "RequestMatcher is required");
 		this.requestMatchers.add(requestMatcher);
@@ -57,22 +59,17 @@ class RequestMatcherClientHttpRequest extends MockClientHttpRequest implements R
 	}
 
 	public ClientHttpResponse executeInternal() throws IOException {
-
 		if (this.requestMatchers.isEmpty()) {
 			throw new AssertionError("No request expectations to execute");
 		}
-
 		if (this.responseCreator == null) {
-			throw new AssertionError("No ResponseCreator was set up. Add it after request expectations, "
-					+ "e.g. MockRestServiceServer.expect(requestTo(\"/foo\")).andRespond(withSuccess())");
+			throw new AssertionError("No ResponseCreator was set up. Add it after request expectations, " +
+					"e.g. MockRestServiceServer.expect(requestTo(\"/foo\")).andRespond(withSuccess())");
 		}
-
 		for (RequestMatcher requestMatcher : this.requestMatchers) {
 			requestMatcher.match(this);
 		}
-
 		setResponse(this.responseCreator.createResponse(this));
-
 		return super.executeInternal();
 	}
 
