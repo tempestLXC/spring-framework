@@ -1,11 +1,11 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -38,8 +38,8 @@ import org.springframework.util.NumberUtils;
  */
 public class OpModulus extends Operator {
 
-	public OpModulus(int pos, SpelNodeImpl... operands) {
-		super("%", pos, operands);
+	public OpModulus(int startPos, int endPos, SpelNodeImpl... operands) {
+		super("%", startPos, endPos, operands);
 	}
 
 
@@ -48,10 +48,7 @@ public class OpModulus extends Operator {
 		Object leftOperand = getLeftOperand().getValueInternal(state).getValue();
 		Object rightOperand = getRightOperand().getValueInternal(state).getValue();
 
-		if (leftOperand instanceof Number && rightOperand instanceof Number) {
-			Number leftNumber = (Number) leftOperand;
-			Number rightNumber = (Number) rightOperand;
-
+		if (leftOperand instanceof Number leftNumber && rightOperand instanceof Number rightNumber) {
 			if (leftNumber instanceof BigDecimal || rightNumber instanceof BigDecimal) {
 				BigDecimal leftBigDecimal = NumberUtils.convertNumberToTargetClass(leftNumber, BigDecimal.class);
 				BigDecimal rightBigDecimal = NumberUtils.convertNumberToTargetClass(rightNumber, BigDecimal.class);
@@ -79,7 +76,7 @@ public class OpModulus extends Operator {
 				return new TypedValue(leftNumber.intValue() % rightNumber.intValue());
 			}
 			else {
-				// Unknown Number subtypes -> best guess is double division
+				// Unknown Number subtype -> best guess is double division
 				return new TypedValue(leftNumber.doubleValue() % rightNumber.doubleValue());
 			}
 		}
@@ -92,12 +89,12 @@ public class OpModulus extends Operator {
 		if (!getLeftOperand().isCompilable()) {
 			return false;
 		}
-		if (this.children.length>1) {
-			 if (!getRightOperand().isCompilable()) {
-				 return false;
-			 }
+		if (this.children.length > 1) {
+			if (!getRightOperand().isCompilable()) {
+				return false;
+			}
 		}
-		return this.exitTypeDescriptor!=null;
+		return (this.exitTypeDescriptor != null);
 	}
 
 	@Override
@@ -115,21 +112,12 @@ public class OpModulus extends Operator {
 			cf.exitCompilationScope();
 			CodeFlow.insertNumericUnboxOrPrimitiveTypeCoercion(mv, rightDesc, targetDesc);
 			switch (targetDesc) {
-				case 'I':
-					mv.visitInsn(IREM);
-					break;
-				case 'J':
-					mv.visitInsn(LREM);
-					break;
-				case 'F': 
-					mv.visitInsn(FREM);
-					break;
-				case 'D':
-					mv.visitInsn(DREM);
-					break;				
-				default:
-					throw new IllegalStateException(
-							"Unrecognized exit type descriptor: '" + this.exitTypeDescriptor + "'");
+				case 'I' -> mv.visitInsn(IREM);
+				case 'J' -> mv.visitInsn(LREM);
+				case 'F' -> mv.visitInsn(FREM);
+				case 'D' -> mv.visitInsn(DREM);
+				default -> throw new IllegalStateException(
+						"Unrecognized exit type descriptor: '" + this.exitTypeDescriptor + "'");
 			}
 		}
 		cf.pushDescriptor(this.exitTypeDescriptor);

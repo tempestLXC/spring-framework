@@ -1,11 +1,11 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,25 +16,27 @@
 
 package org.springframework.orm.jpa.persistenceunit;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import javax.persistence.Converter;
-import javax.persistence.Embeddable;
-import javax.persistence.Entity;
-import javax.persistence.MappedSuperclass;
-import javax.persistence.PersistenceException;
-import javax.persistence.SharedCacheMode;
-import javax.persistence.ValidationMode;
-import javax.persistence.spi.PersistenceUnitInfo;
+
 import javax.sql.DataSource;
 
+import jakarta.persistence.Converter;
+import jakarta.persistence.Embeddable;
+import jakarta.persistence.Entity;
+import jakarta.persistence.MappedSuperclass;
+import jakarta.persistence.PersistenceException;
+import jakarta.persistence.SharedCacheMode;
+import jakarta.persistence.ValidationMode;
+import jakarta.persistence.spi.PersistenceUnitInfo;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -76,8 +78,6 @@ import org.springframework.util.ResourceUtils;
  * DataSource names are by default interpreted as JNDI names, and no load time weaving
  * is available (which requires weaving to be turned off in the persistence provider).
  *
- * <p><b>NOTE: Spring's JPA support requires JPA 2.1 or higher, as of Spring 5.0.</b>
- *
  * @author Juergen Hoeller
  * @author Stephane Nicoll
  * @since 2.0
@@ -101,21 +101,24 @@ public class DefaultPersistenceUnitManager
 	 * Default location of the {@code persistence.xml} file:
 	 * "classpath*:META-INF/persistence.xml".
 	 */
-	public final static String DEFAULT_PERSISTENCE_XML_LOCATION = "classpath*:META-INF/" + PERSISTENCE_XML_FILENAME;
+	public static final String DEFAULT_PERSISTENCE_XML_LOCATION = "classpath*:META-INF/" + PERSISTENCE_XML_FILENAME;
 
 	/**
 	 * Default location for the persistence unit root URL:
 	 * "classpath:", indicating the root of the classpath.
 	 */
-	public final static String ORIGINAL_DEFAULT_PERSISTENCE_UNIT_ROOT_LOCATION = "classpath:";
+	public static final String ORIGINAL_DEFAULT_PERSISTENCE_UNIT_ROOT_LOCATION = "classpath:";
 
-	public final static String ORIGINAL_DEFAULT_PERSISTENCE_UNIT_NAME = "default";
+	/**
+	 * Default persistence unit name.
+	 */
+	public static final String ORIGINAL_DEFAULT_PERSISTENCE_UNIT_NAME = "default";
 
 
 	private static final Set<AnnotationTypeFilter> entityTypeFilters;
 
 	static {
-		entityTypeFilters = new LinkedHashSet<>(4);
+		entityTypeFilters = new LinkedHashSet<>(8);
 		entityTypeFilters.add(new AnnotationTypeFilter(Entity.class, false));
 		entityTypeFilters.add(new AnnotationTypeFilter(Embeddable.class, false));
 		entityTypeFilters.add(new AnnotationTypeFilter(MappedSuperclass.class, false));
@@ -223,7 +226,7 @@ public class DefaultPersistenceUnitManager
 	 * may live next to regularly defined units originating from {@code persistence.xml}.
 	 * Its name is determined by {@link #setDefaultPersistenceUnitName}: by default,
 	 * it's simply "default".
-	 * <p><p>Note: There may be limitations in comparison to regular JPA scanning.</b>
+	 * <p><b>Note: There may be limitations in comparison to regular JPA scanning.</b>
 	 * In particular, JPA providers may pick up annotated packages for provider-specific
 	 * annotations only when driven by {@code persistence.xml}. As of 4.1, Spring's
 	 * scan can detect annotated packages as well if supported by the given
@@ -270,7 +273,7 @@ public class DefaultPersistenceUnitManager
 	 * Specify the JPA 2.0 shared cache mode for all of this manager's persistence
 	 * units, overriding any value in {@code persistence.xml} if set.
 	 * @since 4.0
-	 * @see javax.persistence.spi.PersistenceUnitInfo#getSharedCacheMode()
+	 * @see jakarta.persistence.spi.PersistenceUnitInfo#getSharedCacheMode()
 	 */
 	public void setSharedCacheMode(SharedCacheMode sharedCacheMode) {
 		this.sharedCacheMode = sharedCacheMode;
@@ -280,7 +283,7 @@ public class DefaultPersistenceUnitManager
 	 * Specify the JPA 2.0 validation mode for all of this manager's persistence
 	 * units, overriding any value in {@code persistence.xml} if set.
 	 * @since 4.0
-	 * @see javax.persistence.spi.PersistenceUnitInfo#getValidationMode()
+	 * @see jakarta.persistence.spi.PersistenceUnitInfo#getValidationMode()
 	 */
 	public void setValidationMode(ValidationMode validationMode) {
 		this.validationMode = validationMode;
@@ -337,7 +340,7 @@ public class DefaultPersistenceUnitManager
 	 * <p>In JPA speak, a DataSource passed in here will be uses as "nonJtaDataSource"
 	 * on the PersistenceUnitInfo passed to the PersistenceProvider, provided that
 	 * none has been registered before.
-	 * @see javax.persistence.spi.PersistenceUnitInfo#getNonJtaDataSource()
+	 * @see jakarta.persistence.spi.PersistenceUnitInfo#getNonJtaDataSource()
 	 */
 	public void setDefaultDataSource(@Nullable DataSource defaultDataSource) {
 		this.defaultDataSource = defaultDataSource;
@@ -359,7 +362,7 @@ public class DefaultPersistenceUnitManager
 	 * <p>In JPA speak, a DataSource passed in here will be uses as "jtaDataSource"
 	 * on the PersistenceUnitInfo passed to the PersistenceProvider, provided that
 	 * none has been registered before.
-	 * @see javax.persistence.spi.PersistenceUnitInfo#getJtaDataSource()
+	 * @see jakarta.persistence.spi.PersistenceUnitInfo#getJtaDataSource()
 	 */
 	public void setDefaultJtaDataSource(@Nullable DataSource defaultJtaDataSource) {
 		this.defaultJtaDataSource = defaultJtaDataSource;
@@ -494,7 +497,7 @@ public class DefaultPersistenceUnitManager
 	 * as defined in the JPA specification.
 	 */
 	private List<SpringPersistenceUnitInfo> readPersistenceUnitInfos() {
-		List<SpringPersistenceUnitInfo> infos = new LinkedList<>();
+		List<SpringPersistenceUnitInfo> infos = new ArrayList<>(1);
 		String defaultName = this.defaultPersistenceUnitName;
 		boolean buildDefaultUnit = (this.packagesToScan != null || this.mappingResources != null);
 		boolean foundDefaultUnit = false;
@@ -510,9 +513,9 @@ public class DefaultPersistenceUnitManager
 
 		if (buildDefaultUnit) {
 			if (foundDefaultUnit) {
-				if (logger.isInfoEnabled()) {
-					logger.info("Found explicit default unit with name '" + defaultName + "' in persistence.xml - " +
-							"overriding local default unit settings ('packagesToScan'/'mappingResources')");
+				if (logger.isWarnEnabled()) {
+					logger.warn("Found explicit default persistence unit with name '" + defaultName + "' in persistence.xml - " +
+							"overriding local default persistence unit settings ('packagesToScan'/'mappingResources')");
 				}
 			}
 			else {
@@ -581,7 +584,7 @@ public class DefaultPersistenceUnitManager
 			Resource[] resources = this.resourcePatternResolver.getResources(pattern);
 			MetadataReaderFactory readerFactory = new CachingMetadataReaderFactory(this.resourcePatternResolver);
 			for (Resource resource : resources) {
-				if (resource.isReadable()) {
+				try {
 					MetadataReader reader = readerFactory.getMetadataReader(resource);
 					String className = reader.getClassMetadata().getClassName();
 					if (matchesFilter(reader, readerFactory)) {
@@ -597,6 +600,9 @@ public class DefaultPersistenceUnitManager
 						scannedUnit.addManagedPackage(
 								className.substring(0, className.length() - PACKAGE_INFO_SUFFIX.length()));
 					}
+				}
+				catch (FileNotFoundException ex) {
+					// Ignore non-readable resource
 				}
 			}
 		}

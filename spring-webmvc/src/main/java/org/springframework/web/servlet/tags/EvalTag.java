@@ -1,11 +1,11 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,8 +17,9 @@
 package org.springframework.web.servlet.tags;
 
 import java.io.IOException;
-import javax.servlet.jsp.JspException;
-import javax.servlet.jsp.PageContext;
+
+import jakarta.servlet.jsp.JspException;
+import jakarta.servlet.jsp.PageContext;
 
 import org.springframework.context.expression.BeanFactoryResolver;
 import org.springframework.context.expression.EnvironmentAccessor;
@@ -47,51 +48,52 @@ import org.springframework.web.util.TagUtils;
  * <caption>Attribute Summary</caption>
  * <thead>
  * <tr>
- * <th class="colFirst">Attribute</th>
- * <th class="colOne">Required?</th>
- * <th class="colOne">Runtime Expression?</th>
- * <th class="colLast">Description</th>
+ * <th>Attribute</th>
+ * <th>Required?</th>
+ * <th>Runtime Expression?</th>
+ * <th>Description</th>
  * </tr>
+ * </thead>
  * <tbody>
- * <tr class="altColor">
- * <td>expression</p></td>
- * <td>true</p></td>
- * <td>true</p></td>
- * <td>The expression to evaluate.</p></td>
+ * <tr>
+ * <td>expression</td>
+ * <td>true</td>
+ * <td>true</td>
+ * <td>The expression to evaluate.</td>
  * </tr>
- * <tr class="rowColor">
- * <td>htmlEscape</p></td>
- * <td>false</p></td>
- * <td>true</p></td>
+ * <tr>
+ * <td>htmlEscape</td>
+ * <td>false</td>
+ * <td>true</td>
  * <td>Set HTML escaping for this tag, as a boolean value.
- * Overrides the default HTML escaping setting for the current page.</p></td>
+ * Overrides the default HTML escaping setting for the current page.</td>
  * </tr>
- * <tr class="altColor">
- * <td>javaScriptEscape</p></td>
- * <td>false</p></td>
- * <td>true</p></td>
+ * <tr>
+ * <td>javaScriptEscape</td>
+ * <td>false</td>
+ * <td>true</td>
  * <td>Set JavaScript escaping for this tag, as a boolean value.
- * Default is false.</p></td>
+ * Default is false.</td>
  * </tr>
- * <tr class="rowColor">
- * <td>scope</p></td>
- * <td>false</p></td>
- * <td>true</p></td>
+ * <tr>
+ * <td>scope</td>
+ * <td>false</td>
+ * <td>true</td>
  * <td>The scope for the var. 'application', 'session', 'request' and 'page'
  * scopes are supported. Defaults to page scope. This attribute has no effect
- * unless the var attribute is also defined.</p></td>
+ * unless the var attribute is also defined.</td>
  * </tr>
- * <tr class="altColor">
- * <td>var</p></td>
- * <td>false</p></td>
- * <td>true</p></td>
+ * <tr>
+ * <td>var</td>
+ * <td>false</td>
+ * <td>true</td>
  * <td>The name of the variable to export the evaluation result to.
  * If not specified the evaluation result is converted to a String and written
- * as output.</p></td>
+ * as output.</td>
  * </tr>
  * </tbody>
  * </table>
- * 
+ *
  * @author Keith Donald
  * @author Juergen Hoeller
  * @since 3.0.1
@@ -100,7 +102,7 @@ import org.springframework.web.util.TagUtils;
 public class EvalTag extends HtmlEscapingAwareTag {
 
 	/**
-	 * {@link javax.servlet.jsp.PageContext} attribute for the
+	 * {@link jakarta.servlet.jsp.PageContext} attribute for the
 	 * page-level {@link EvaluationContext} instance.
 	 */
 	private static final String EVALUATION_CONTEXT_PAGE_ATTRIBUTE =
@@ -210,7 +212,7 @@ public class EvalTag extends HtmlEscapingAwareTag {
 		private final PageContext pageContext;
 
 		@Nullable
-		private final javax.servlet.jsp.el.VariableResolver variableResolver;
+		private final jakarta.servlet.jsp.el.VariableResolver variableResolver;
 
 		public JspPropertyAccessor(PageContext pageContext) {
 			this.pageContext = pageContext;

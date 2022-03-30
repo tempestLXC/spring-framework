@@ -1,11 +1,11 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -20,12 +20,12 @@ import java.io.IOException;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.reactivestreams.Processor;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
 
+import org.springframework.core.log.LogDelegateFactory;
 import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 
@@ -38,19 +38,71 @@ import org.springframework.util.Assert;
  * @author Violeta Georgieva
  * @author Rossen Stoyanchev
  * @since 5.0
+ * @param <T> the type of element signaled to the {@link Subscriber}
  */
 public abstract class AbstractListenerWriteFlushProcessor<T> implements Processor<Publisher<? extends T>, Void> {
 
-	protected final Log logger = LogFactory.getLog(getClass());
+	/**
+	 * Special logger for debugging Reactive Streams signals.
+	 * @see LogDelegateFactory#getHiddenLog(Class)
+	 * @see AbstractListenerReadPublisher#rsReadLogger
+	 * @see AbstractListenerWriteProcessor#rsWriteLogger
+	 * @see WriteResultPublisher#rsWriteResultLogger
+	 */
+	protected static final Log rsWriteFlushLogger =
+			LogDelegateFactory.getHiddenLog(AbstractListenerWriteFlushProcessor.class);
+
 
 	private final AtomicReference<State> state = new AtomicReference<>(State.UNSUBSCRIBED);
 
 	@Nullable
 	private Subscription subscription;
 
-	private volatile boolean subscriberCompleted;
+	private volatile boolean sourceCompleted;
 
-	private final WriteResultPublisher resultPublisher = new WriteResultPublisher();
+	@Nullable
+	private volatile AbstractListenerWriteProcessor<?> currentWriteProcessor;
+
+	private final WriteResultPublisher resultPublisher;
+
+	private final String logPrefix;
+
+
+	public AbstractListenerWriteFlushProcessor() {
+		this("");
+	}
+
+	/**
+	 * Create an instance with the given log prefix.
+	 * @since 5.1
+	 */
+	public AbstractListenerWriteFlushProcessor(String logPrefix) {
+		this.logPrefix = logPrefix;
+		this.resultPublisher = new WriteResultPublisher(logPrefix + "[WFP] ",
+				() -> {
+					cancel();
+					// Complete immediately
+					State oldState = this.state.getAndSet(State.COMPLETED);
+					if (rsWriteFlushLogger.isTraceEnabled()) {
+						rsWriteFlushLogger.trace(getLogPrefix() + oldState + " -> " + this.state);
+					}
+					// Propagate to current "write" Processor
+					AbstractListenerWriteProcessor<?> writeProcessor = this.currentWriteProcessor;
+					if (writeProcessor != null) {
+						writeProcessor.cancelAndSetCompleted();
+					}
+					this.currentWriteProcessor = null;
+				});
+	}
+
+
+	/**
+	 * Create an instance with the given log prefix.
+	 * @since 5.1
+	 */
+	public String getLogPrefix() {
+		return this.logPrefix;
+	}
 
 
 	// Subscriber methods and async I/O notification methods...
@@ -62,7 +114,9 @@ public abstract class AbstractListenerWriteFlushProcessor<T> implements Processo
 
 	@Override
 	public final void onNext(Publisher<? extends T> publisher) {
-		logger.trace("Received onNext publisher");
+		if (rsWriteFlushLogger.isTraceEnabled()) {
+			rsWriteFlushLogger.trace(getLogPrefix() + "onNext: \"write\" Publisher");
+		}
 		this.state.get().onNext(this, publisher);
 	}
 
@@ -72,10 +126,11 @@ public abstract class AbstractListenerWriteFlushProcessor<T> implements Processo
 	 */
 	@Override
 	public final void onError(Throwable ex) {
-		if (logger.isTraceEnabled()) {
-			logger.trace("Received onError: " + ex);
+		State state = this.state.get();
+		if (rsWriteFlushLogger.isTraceEnabled()) {
+			rsWriteFlushLogger.trace(getLogPrefix() + "onError: " + ex + " [" + state + "]");
 		}
-		this.state.get().onError(this, ex);
+		state.onError(this, ex);
 	}
 
 	/**
@@ -84,12 +139,15 @@ public abstract class AbstractListenerWriteFlushProcessor<T> implements Processo
 	 */
 	@Override
 	public final void onComplete() {
-		logger.trace("Received onComplete");
-		this.state.get().onComplete(this);
+		State state = this.state.get();
+		if (rsWriteFlushLogger.isTraceEnabled()) {
+			rsWriteFlushLogger.trace(getLogPrefix() + "onComplete [" + state + "]");
+		}
+		state.onComplete(this);
 	}
 
 	/**
-	 * Invoked when flusing is possible, either in the same thread after a check
+	 * Invoked when flushing is possible, either in the same thread after a check
 	 * via {@link #isWritePossible()}, or as a callback from the underlying
 	 * container.
 	 */
@@ -98,11 +156,16 @@ public abstract class AbstractListenerWriteFlushProcessor<T> implements Processo
 	}
 
 	/**
-	 * Invoked during an error or completion callback from the underlying
-	 * container to cancel the upstream subscription.
+	 * Cancel the upstream chain of "write" Publishers only, for example due to
+	 * Servlet container error/completion notifications. This should usually
+	 * be followed up with a call to either {@link #onError(Throwable)} or
+	 * {@link #onComplete()} to notify the downstream chain, that is unless
+	 * cancellation came from downstream.
 	 */
 	protected void cancel() {
-		this.logger.trace("Received request to cancel");
+		if (rsWriteFlushLogger.isTraceEnabled()) {
+			rsWriteFlushLogger.trace(getLogPrefix() + "cancel [" + this.state + "]");
+		}
 		if (this.subscription != null) {
 			this.subscription.cancel();
 		}
@@ -132,21 +195,26 @@ public abstract class AbstractListenerWriteFlushProcessor<T> implements Processo
 	/**
 	 * Flush the output if ready, or otherwise {@link #isFlushPending()} should
 	 * return true after.
+	 * <p>This is primarily for the Servlet non-blocking I/O API where flush
+	 * cannot be called without a readyToWrite check.
 	 */
 	protected abstract void flush() throws IOException;
 
 	/**
 	 * Whether flushing is pending.
+	 * <p>This is primarily for the Servlet non-blocking I/O API where flush
+	 * cannot be called without a readyToWrite check.
 	 */
 	protected abstract boolean isFlushPending();
 
 	/**
-	 * Invoked when an error happens while flushing. Sub-classes may choose
-	 * to ignore this if they know the underlying API will provide an error
-	 * notification in a container thread.
-	 * <p>Defaults to no-op.
+	 * Invoked when an error happens while flushing.
+	 * <p>The default implementation cancels the upstream write publisher and
+	 * sends an onError downstream as the result of request handling.
 	 */
 	protected void flushingFailed(Throwable t) {
+		cancel();
+		onError(t);
 	}
 
 
@@ -154,16 +222,16 @@ public abstract class AbstractListenerWriteFlushProcessor<T> implements Processo
 
 	private boolean changeState(State oldState, State newState) {
 		boolean result = this.state.compareAndSet(oldState, newState);
-		if (result && logger.isTraceEnabled()) {
-			logger.trace(oldState + " -> " + newState);
+		if (result && rsWriteFlushLogger.isTraceEnabled()) {
+			rsWriteFlushLogger.trace(getLogPrefix() + oldState + " -> " + newState);
 		}
 		return result;
 	}
 
 	private void flushIfPossible() {
 		boolean result = isWritePossible();
-		if (logger.isTraceEnabled()) {
-			logger.trace("isWritePossible[" + result + "]");
+		if (rsWriteFlushLogger.isTraceEnabled()) {
+			rsWriteFlushLogger.trace(getLogPrefix() + "isWritePossible[" + result + "]");
 		}
 		if (result) {
 			onFlushPossible();
@@ -201,6 +269,17 @@ public abstract class AbstractListenerWriteFlushProcessor<T> implements Processo
 					super.onSubscribe(processor, subscription);
 				}
 			}
+
+			@Override
+			public <T> void onComplete(AbstractListenerWriteFlushProcessor<T> processor) {
+				// This can happen on (very early) completion notification from container..
+				if (processor.changeState(this, COMPLETED)) {
+					processor.resultPublisher.publishComplete();
+				}
+				else {
+					processor.state.get().onComplete(processor);
+				}
+			}
 		},
 
 		REQUESTED {
@@ -209,9 +288,10 @@ public abstract class AbstractListenerWriteFlushProcessor<T> implements Processo
 					Publisher<? extends T> currentPublisher) {
 
 				if (processor.changeState(this, RECEIVED)) {
-					Processor<? super T, Void> currentProcessor = processor.createWriteProcessor();
-					currentPublisher.subscribe(currentProcessor);
-					currentProcessor.subscribe(new WriteResultSubscriber(processor));
+					Processor<? super T, Void> writeProcessor = processor.createWriteProcessor();
+					processor.currentWriteProcessor = (AbstractListenerWriteProcessor<?>) writeProcessor;
+					currentPublisher.subscribe(writeProcessor);
+					writeProcessor.subscribe(new WriteResultSubscriber(processor));
 				}
 			}
 			@Override
@@ -236,18 +316,8 @@ public abstract class AbstractListenerWriteFlushProcessor<T> implements Processo
 					return;
 				}
 				if (processor.changeState(this, REQUESTED)) {
-					if (processor.subscriberCompleted) {
-						if (processor.isFlushPending()) {
-							// Ensure the final flush
-							processor.changeState(REQUESTED, FLUSHING);
-							processor.flushIfPossible();
-						}
-						else if (processor.changeState(REQUESTED, COMPLETED)) {
-							processor.resultPublisher.publishComplete();
-						}
-						else {
-							processor.state.get().onComplete(processor);
-						}
+					if (processor.sourceCompleted) {
+						handleSourceCompleted(processor);
 					}
 					else {
 						Assert.state(processor.subscription != null, "No subscription");
@@ -257,11 +327,30 @@ public abstract class AbstractListenerWriteFlushProcessor<T> implements Processo
 			}
 			@Override
 			public <T> void onComplete(AbstractListenerWriteFlushProcessor<T> processor) {
-				processor.subscriberCompleted = true;
+				processor.sourceCompleted = true;
+				// A competing write might have completed very quickly
+				if (processor.state.get() == State.REQUESTED) {
+					handleSourceCompleted(processor);
+				}
+			}
+
+			private <T> void handleSourceCompleted(AbstractListenerWriteFlushProcessor<T> processor) {
+				if (processor.isFlushPending()) {
+					// Ensure the final flush
+					processor.changeState(State.REQUESTED, State.FLUSHING);
+					processor.flushIfPossible();
+				}
+				else if (processor.changeState(State.REQUESTED, State.COMPLETED)) {
+					processor.resultPublisher.publishComplete();
+				}
+				else {
+					processor.state.get().onComplete(processor);
+				}
 			}
 		},
 
 		FLUSHING {
+			@Override
 			public <T> void onFlushPossible(AbstractListenerWriteFlushProcessor<T> processor) {
 				try {
 					processor.flush();
@@ -277,6 +366,7 @@ public abstract class AbstractListenerWriteFlushProcessor<T> implements Processo
 					processor.state.get().onComplete(processor);
 				}
 			}
+			@Override
 			public <T> void onNext(AbstractListenerWriteFlushProcessor<T> proc, Publisher<? extends T> pub) {
 				// ignore
 			}
@@ -356,16 +446,28 @@ public abstract class AbstractListenerWriteFlushProcessor<T> implements Processo
 
 			@Override
 			public void onError(Throwable ex) {
+				if (rsWriteFlushLogger.isTraceEnabled()) {
+					rsWriteFlushLogger.trace(
+							this.processor.getLogPrefix() + "current \"write\" Publisher failed: " + ex);
+				}
+				this.processor.currentWriteProcessor = null;
 				this.processor.cancel();
 				this.processor.onError(ex);
 			}
 
 			@Override
 			public void onComplete() {
-				if (this.processor.logger.isTraceEnabled()) {
-					this.processor.logger.trace(this.processor.state + " writeComplete");
+				if (rsWriteFlushLogger.isTraceEnabled()) {
+					rsWriteFlushLogger.trace(
+							this.processor.getLogPrefix() + "current \"write\" Publisher completed");
 				}
+				this.processor.currentWriteProcessor = null;
 				this.processor.state.get().writeComplete(this.processor);
+			}
+
+			@Override
+			public String toString() {
+				return this.processor.getClass().getSimpleName() + "-WriteResultSubscriber";
 			}
 		}
 	}

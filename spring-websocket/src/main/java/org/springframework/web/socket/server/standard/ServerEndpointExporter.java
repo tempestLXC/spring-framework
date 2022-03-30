@@ -1,11 +1,11 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -21,11 +21,12 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import javax.servlet.ServletContext;
-import javax.websocket.DeploymentException;
-import javax.websocket.server.ServerContainer;
-import javax.websocket.server.ServerEndpoint;
-import javax.websocket.server.ServerEndpointConfig;
+
+import jakarta.servlet.ServletContext;
+import jakarta.websocket.DeploymentException;
+import jakarta.websocket.server.ServerContainer;
+import jakarta.websocket.server.ServerEndpoint;
+import jakarta.websocket.server.ServerEndpointConfig;
 
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.SmartInitializingSingleton;
@@ -35,7 +36,7 @@ import org.springframework.util.Assert;
 import org.springframework.web.context.support.WebApplicationObjectSupport;
 
 /**
- * Detects beans of type {@link javax.websocket.server.ServerEndpointConfig} and registers
+ * Detects beans of type {@link jakarta.websocket.server.ServerEndpointConfig} and registers
  * with the standard Java WebSocket runtime. Also detects beans annotated with
  * {@link ServerEndpoint} and registers them as well. Although not required, it is likely
  * annotated endpoints should have their {@code configurator} property set to
@@ -92,7 +93,7 @@ public class ServerEndpointExporter extends WebApplicationObjectSupport
 	protected void initServletContext(ServletContext servletContext) {
 		if (this.serverContainer == null) {
 			this.serverContainer =
-					(ServerContainer) servletContext.getAttribute("javax.websocket.server.ServerContainer");
+					(ServerContainer) servletContext.getAttribute("jakarta.websocket.server.ServerContainer");
 		}
 	}
 
@@ -103,7 +104,7 @@ public class ServerEndpointExporter extends WebApplicationObjectSupport
 
 	@Override
 	public void afterPropertiesSet() {
-		Assert.state(getServerContainer() != null, "javax.websocket.server.ServerContainer not available");
+		Assert.state(getServerContainer() != null, "jakarta.websocket.server.ServerContainer not available");
 	}
 
 	@Override
@@ -143,10 +144,14 @@ public class ServerEndpointExporter extends WebApplicationObjectSupport
 
 	private void registerEndpoint(Class<?> endpointClass) {
 		ServerContainer serverContainer = getServerContainer();
-		Assert.state(serverContainer != null, "No ServerContainer set");
+		Assert.state(serverContainer != null,
+				"No ServerContainer set. Most likely the server's own WebSocket ServletContainerInitializer " +
+				"has not run yet. Was the Spring ApplicationContext refreshed through a " +
+				"org.springframework.web.context.ContextLoaderListener, " +
+				"i.e. after the ServletContext has been fully initialized?");
 		try {
-			if (logger.isInfoEnabled()) {
-				logger.info("Registering @ServerEndpoint class: " + endpointClass);
+			if (logger.isDebugEnabled()) {
+				logger.debug("Registering @ServerEndpoint class: " + endpointClass);
 			}
 			serverContainer.addEndpoint(endpointClass);
 		}
@@ -159,8 +164,8 @@ public class ServerEndpointExporter extends WebApplicationObjectSupport
 		ServerContainer serverContainer = getServerContainer();
 		Assert.state(serverContainer != null, "No ServerContainer set");
 		try {
-			if (logger.isInfoEnabled()) {
-				logger.info("Registering ServerEndpointConfig: " + endpointConfig);
+			if (logger.isDebugEnabled()) {
+				logger.debug("Registering ServerEndpointConfig: " + endpointConfig);
 			}
 			serverContainer.addEndpoint(endpointConfig);
 		}

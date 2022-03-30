@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -18,9 +18,9 @@ package org.springframework.web.socket;
 
 import java.io.File;
 import java.io.IOException;
-import javax.servlet.Filter;
-import javax.servlet.ServletContext;
 
+import jakarta.servlet.Filter;
+import jakarta.servlet.ServletContext;
 import org.apache.catalina.Context;
 import org.apache.catalina.connector.Connector;
 import org.apache.catalina.startup.Tomcat;

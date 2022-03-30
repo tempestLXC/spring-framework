@@ -1,11 +1,11 @@
 /*
- * Copyright 2002-2016 the original author or authors.
+ * Copyright 2002-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -33,6 +33,12 @@ import org.springframework.messaging.handler.annotation.MessageMapping;
  * assumed to be available with a bean name of {@code jmsListenerContainerFactory}
  * unless an explicit default has been provided through configuration.
  *
+ * <p><b>Consider setting up a custom
+ * {@link org.springframework.jms.config.DefaultJmsListenerContainerFactory} bean.</b>
+ * For production purposes, you'll typically fine-tune timeouts and recovery settings.
+ * Most importantly, the default 'AUTO_ACKNOWLEDGE' mode does not provide reliability
+ * guarantees, so make sure to use transacted sessions in case of reliability needs.
+ *
  * <p>Processing of {@code @JmsListener} annotations is performed by registering a
  * {@link JmsListenerAnnotationBeanPostProcessor}. This can be done manually or,
  * more conveniently, through the {@code <jms:annotation-driven/>} element or
@@ -41,8 +47,8 @@ import org.springframework.messaging.handler.annotation.MessageMapping;
  * <p>Annotated JMS listener methods are allowed to have flexible signatures similar
  * to what {@link MessageMapping} provides:
  * <ul>
- * <li>{@link javax.jms.Session} to get access to the JMS session</li>
- * <li>{@link javax.jms.Message} or one of its subclasses to get access to the raw JMS message</li>
+ * <li>{@link jakarta.jms.Session} to get access to the JMS session</li>
+ * <li>{@link jakarta.jms.Message} or one of its subclasses to get access to the raw JMS message</li>
  * <li>{@link org.springframework.messaging.Message} to use Spring's messaging abstraction counterpart</li>
  * <li>{@link org.springframework.messaging.handler.annotation.Payload @Payload}-annotated method
  * arguments, including support for validation</li>
@@ -65,6 +71,9 @@ import org.springframework.messaging.handler.annotation.MessageMapping;
  * is not set, a default destination can be provided by adding
  * {@link org.springframework.messaging.handler.annotation.SendTo @SendTo} to the
  * method declaration.
+ *
+ * <p>This annotation can be used as a <em>{@linkplain Repeatable repeatable}</em>
+ * annotation.
  *
  * <p>This annotation may be used as a <em>meta-annotation</em> to create custom
  * <em>composed annotations</em> with attribute overrides.

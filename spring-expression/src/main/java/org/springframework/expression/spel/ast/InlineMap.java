@@ -1,11 +1,11 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -31,6 +31,7 @@ import org.springframework.util.Assert;
  * Represent a map in an expression, e.g. '{name:'foo',age:12}'
  *
  * @author Andy Clement
+ * @author Sam Brannen
  * @since 4.1
  */
 public class InlineMap extends SpelNodeImpl {
@@ -40,14 +41,14 @@ public class InlineMap extends SpelNodeImpl {
 	private TypedValue constant;
 
 
-	public InlineMap(int pos, SpelNodeImpl... args) {
-		super(pos, args);
+	public InlineMap(int startPos, int endPos, SpelNodeImpl... args) {
+		super(startPos, endPos, args);
 		checkIfConstant();
 	}
 
 
 	/**
-	 * If all the components of the list are constants, or lists/maps that themselves
+	 * If all the components of the map are constants, or lists/maps that themselves
 	 * contain constants, then a constant list can be built to represent this node.
 	 * This will speed up later getValue calls and reduce the amount of garbage created.
 	 */
@@ -56,51 +57,49 @@ public class InlineMap extends SpelNodeImpl {
 		for (int c = 0, max = getChildCount(); c < max; c++) {
 			SpelNode child = getChild(c);
 			if (!(child instanceof Literal)) {
-				if (child instanceof InlineList) {
-					InlineList inlineList = (InlineList) child;
+				if (child instanceof InlineList inlineList) {
 					if (!inlineList.isConstant()) {
 						isConstant = false;
 						break;
 					}
 				}
-				else if (child instanceof InlineMap) {
-					InlineMap inlineMap = (InlineMap) child;
+				else if (child instanceof InlineMap inlineMap) {
 					if (!inlineMap.isConstant()) {
 						isConstant = false;
 						break;
 					}
 				}
-				else if (!((c%2)==0 && (child instanceof PropertyOrFieldReference))) {					
+				else if (!(c % 2 == 0 && child instanceof PropertyOrFieldReference)) {
 					isConstant = false;
 					break;
 				}
 			}
 		}
 		if (isConstant) {
-			Map<Object,Object> constantMap = new LinkedHashMap<>();
+			Map<Object, Object> constantMap = new LinkedHashMap<>();
 			int childCount = getChildCount();
 			for (int c = 0; c < childCount; c++) {
 				SpelNode keyChild = getChild(c++);
 				SpelNode valueChild = getChild(c);
 				Object key = null;
 				Object value = null;
-				if (keyChild instanceof Literal) {
-					key = ((Literal) keyChild).getLiteralValue().getValue();
+				if (keyChild instanceof Literal literal) {
+					key = literal.getLiteralValue().getValue();
 				}
-				else if (keyChild instanceof PropertyOrFieldReference) {
-					key = ((PropertyOrFieldReference) keyChild).getName();
+				else if (keyChild instanceof PropertyOrFieldReference propertyOrFieldReference) {
+					key = propertyOrFieldReference.getName();
 				}
 				else {
 					return;
 				}
-				if (valueChild instanceof Literal) {
-					value = ((Literal) valueChild).getLiteralValue().getValue();
+				if (valueChild instanceof Literal literal) {
+					value = literal.getLiteralValue().getValue();
 				}
-				else if (valueChild instanceof InlineList) {
-					value = ((InlineList) valueChild).getConstantValue();
+				else if (valueChild instanceof InlineList inlineList) {
+					value = inlineList.getConstantValue();
 				}
-				else if (valueChild instanceof InlineMap) {
-					value = ((InlineMap) valueChild).getConstantValue();
+				else if (valueChild instanceof InlineMap inlineMap) {
+					value = inlineMap.getConstantValue();
 				}
 				constantMap.put(key, value);
 			}
@@ -120,8 +119,7 @@ public class InlineMap extends SpelNodeImpl {
 				// TODO allow for key being PropertyOrFieldReference like Indexer on maps
 				SpelNode keyChild = getChild(c++);
 				Object key = null;
-				if (keyChild instanceof PropertyOrFieldReference) {
-					PropertyOrFieldReference reference = (PropertyOrFieldReference) keyChild;
+				if (keyChild instanceof PropertyOrFieldReference reference) {
 					key = reference.getName();
 				}
 				else {
@@ -140,13 +138,13 @@ public class InlineMap extends SpelNodeImpl {
 		int count = getChildCount();
 		for (int c = 0; c < count; c++) {
 			if (c > 0) {
-				sb.append(",");
+				sb.append(',');
 			}
 			sb.append(getChild(c++).toStringAST());
-			sb.append(":");
+			sb.append(':');
 			sb.append(getChild(c).toStringAST());
 		}
-		sb.append("}");
+		sb.append('}');
 		return sb.toString();
 	}
 
@@ -159,9 +157,9 @@ public class InlineMap extends SpelNodeImpl {
 
 	@SuppressWarnings("unchecked")
 	@Nullable
-	public Map<Object,Object> getConstantValue() {
+	public Map<Object, Object> getConstantValue() {
 		Assert.state(this.constant != null, "No constant");
-		return (Map<Object,Object>) this.constant.getValue();
+		return (Map<Object, Object>) this.constant.getValue();
 	}
 
 }

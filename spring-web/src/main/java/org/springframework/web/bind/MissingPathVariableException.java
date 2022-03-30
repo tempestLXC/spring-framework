@@ -1,11 +1,11 @@
 /*
- * Copyright 2002-2015 the original author or authors.
+ * Copyright 2002-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,6 +17,8 @@
 package org.springframework.web.bind;
 
 import org.springframework.core.MethodParameter;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 
 /**
  * {@link ServletRequestBindingException} subclass that indicates that a path
@@ -27,9 +29,10 @@ import org.springframework.core.MethodParameter;
  *
  * @author Rossen Stoyanchev
  * @since 4.2
+ * @see MissingMatrixVariableException
  */
 @SuppressWarnings("serial")
-public class MissingPathVariableException extends ServletRequestBindingException {
+public class MissingPathVariableException extends MissingRequestValueException {
 
 	private final String variableName;
 
@@ -42,16 +45,31 @@ public class MissingPathVariableException extends ServletRequestBindingException
 	 * @param parameter the method parameter
 	 */
 	public MissingPathVariableException(String variableName, MethodParameter parameter) {
-		super("");
+		this(variableName, parameter, false);
+	}
+
+	/**
+	 * Constructor for use when a value was present but converted to {@code null}.
+	 * @param variableName the name of the missing path variable
+	 * @param parameter the method parameter
+	 * @param missingAfterConversion whether the value became null after conversion
+	 * @since 5.3.6
+	 */
+	public MissingPathVariableException(
+			String variableName, MethodParameter parameter, boolean missingAfterConversion) {
+
+		super("", missingAfterConversion);
 		this.variableName = variableName;
 		this.parameter = parameter;
+		getBody().setDetail("Required path variable '" + this.variableName + "' is not present.");
 	}
 
 
 	@Override
 	public String getMessage() {
-		return "Missing URI template variable '" + this.variableName +
-				"' for method parameter of type " + this.parameter.getParameterType().getSimpleName();
+		return "Required URI template variable '" + this.variableName + "' for method parameter type " +
+				this.parameter.getNestedParameterType().getSimpleName() + " is " +
+				(isMissingAfterConversion() ? "present but converted to null" : "not present");
 	}
 
 	/**
@@ -66,6 +84,11 @@ public class MissingPathVariableException extends ServletRequestBindingException
 	 */
 	public final MethodParameter getParameter() {
 		return this.parameter;
+	}
+
+	@Override
+	public HttpStatusCode getStatusCode() {
+		return HttpStatus.INTERNAL_SERVER_ERROR;
 	}
 
 }

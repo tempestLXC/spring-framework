@@ -1,11 +1,11 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-2020 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -19,8 +19,9 @@ package org.springframework.mail.javamail;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import javax.activation.FileTypeMap;
-import javax.activation.MimetypesFileTypeMap;
+
+import jakarta.activation.FileTypeMap;
+import jakarta.activation.MimetypesFileTypeMap;
 
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.core.io.ClassPathResource;
@@ -57,7 +58,7 @@ import org.springframework.lang.Nullable;
  * @since 1.2
  * @see #setMappingLocation
  * @see #setMappings
- * @see javax.activation.MimetypesFileTypeMap
+ * @see jakarta.activation.MimetypesFileTypeMap
  */
 public class ConfigurableMimeFileTypeMap extends FileTypeMap implements InitializingBean {
 
@@ -93,7 +94,7 @@ public class ConfigurableMimeFileTypeMap extends FileTypeMap implements Initiali
 	/**
 	 * Specify additional MIME type mappings as lines that follow the
 	 * {@code mime.types} file format, as specified by the
-	 * Java Activation Framework, for example:<br>
+	 * Java Activation Framework. For example:<br>
 	 * {@code text/html  html htm HTML HTM}
 	 */
 	public void setMappings(String... mappings) {
@@ -136,21 +137,17 @@ public class ConfigurableMimeFileTypeMap extends FileTypeMap implements Initiali
 	 * passing in an InputStream from the mapping resource (if any) and registering
 	 * the mapping lines programmatically.
 	 * @param mappingLocation a {@code mime.types} mapping resource (can be {@code null})
-	 * @param mappings MIME type mapping lines (can be {@code null})
+	 * @param mappings an array of MIME type mapping lines (can be {@code null})
 	 * @return the compiled FileTypeMap
 	 * @throws IOException if resource access failed
-	 * @see javax.activation.MimetypesFileTypeMap#MimetypesFileTypeMap(java.io.InputStream)
-	 * @see javax.activation.MimetypesFileTypeMap#addMimeTypes(String)
+	 * @see jakarta.activation.MimetypesFileTypeMap#MimetypesFileTypeMap(java.io.InputStream)
+	 * @see jakarta.activation.MimetypesFileTypeMap#addMimeTypes(String)
 	 */
 	protected FileTypeMap createFileTypeMap(@Nullable Resource mappingLocation, @Nullable String[] mappings) throws IOException {
 		MimetypesFileTypeMap fileTypeMap = null;
 		if (mappingLocation != null) {
-			InputStream is = mappingLocation.getInputStream();
-			try {
+			try (InputStream is = mappingLocation.getInputStream()) {
 				fileTypeMap = new MimetypesFileTypeMap(is);
-			}
-			finally {
-				is.close();
 			}
 		}
 		else {

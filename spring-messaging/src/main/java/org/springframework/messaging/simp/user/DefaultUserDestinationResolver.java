@@ -1,11 +1,11 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -22,15 +22,14 @@ import java.util.HashSet;
 import java.util.Set;
 
 import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 
 import org.springframework.lang.Nullable;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageHeaders;
+import org.springframework.messaging.simp.SimpLogging;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.messaging.simp.SimpMessageType;
 import org.springframework.util.Assert;
-import org.springframework.util.PathMatcher;
 import org.springframework.util.StringUtils;
 
 /**
@@ -52,14 +51,14 @@ import org.springframework.util.StringUtils;
  */
 public class DefaultUserDestinationResolver implements UserDestinationResolver {
 
-	private static final Log logger = LogFactory.getLog(DefaultUserDestinationResolver.class);
+	private static final Log logger = SimpLogging.forLogName(DefaultUserDestinationResolver.class);
 
 
 	private final SimpUserRegistry userRegistry;
 
 	private String prefix = "/user/";
 
-	private boolean keepLeadingSlash = true;
+	private boolean removeLeadingSlash = false;
 
 
 	/**
@@ -68,7 +67,7 @@ public class DefaultUserDestinationResolver implements UserDestinationResolver {
 	 * @param userRegistry the registry, never {@code null}
 	 */
 	public DefaultUserDestinationResolver(SimpUserRegistry userRegistry) {
-		Assert.notNull(userRegistry, "'userRegistry' must not be null");
+		Assert.notNull(userRegistry, "SimpUserRegistry must not be null");
 		this.userRegistry = userRegistry;
 	}
 
@@ -87,8 +86,8 @@ public class DefaultUserDestinationResolver implements UserDestinationResolver {
 	 * @param prefix the prefix to use
 	 */
 	public void setUserDestinationPrefix(String prefix) {
-		Assert.hasText(prefix, "prefix must not be empty");
-		this.prefix = prefix.endsWith("/") ? prefix : prefix + "/";
+		Assert.hasText(prefix, "Prefix must not be empty");
+		this.prefix = (prefix.endsWith("/") ? prefix : prefix + "/");
 	}
 
 	/**
@@ -99,23 +98,27 @@ public class DefaultUserDestinationResolver implements UserDestinationResolver {
 	}
 
 	/**
-	 * Provide the {@code PathMatcher} in use for working with destinations
-	 * which in turn helps to determine whether the leading slash should be
-	 * kept in actual destinations after removing the
-	 * {@link #setUserDestinationPrefix userDestinationPrefix}.
-	 * <p>By default actual destinations have a leading slash, e.g.
-	 * {@code /queue/position-updates} which makes sense with brokers that
-	 * support destinations with slash as separator. When a {@code PathMatcher}
-	 * is provided that supports an alternative separator, then resulting
-	 * destinations won't have a leading slash, e.g. {@code
-	 * jms.queue.position-updates}.
-	 * @param pathMatcher the PathMatcher used to work with destinations
-	 * @since 4.3
+	 * Use this property to indicate whether the leading slash from translated
+	 * user destinations should be removed or not. This depends on the
+	 * destination prefixes the message broker is configured with.
+	 * <p>By default this is set to {@code false}, i.e.
+	 * "do not change the target destination", although
+	 * {@link org.springframework.messaging.simp.config.AbstractMessageBrokerConfiguration
+	 * AbstractMessageBrokerConfiguration} may change that to {@code true}
+	 * if the configured destinations do not have a leading slash.
+	 * @param remove whether to remove the leading slash
+	 * @since 4.3.14
 	 */
-	public void setPathMatcher(@Nullable PathMatcher pathMatcher) {
-		if (pathMatcher != null) {
-			this.keepLeadingSlash = pathMatcher.combine("1", "2").equals("1/2");
-		}
+	public void setRemoveLeadingSlash(boolean remove) {
+		this.removeLeadingSlash = remove;
+	}
+
+	/**
+	 * Whether to remove the leading slash from target destinations.
+	 * @since 4.3.14
+	 */
+	public boolean isRemoveLeadingSlash() {
+		return this.removeLeadingSlash;
 	}
 
 
@@ -171,11 +174,12 @@ public class DefaultUserDestinationResolver implements UserDestinationResolver {
 		}
 		int prefixEnd = this.prefix.length() - 1;
 		String actualDestination = sourceDestination.substring(prefixEnd);
-		if (!this.keepLeadingSlash) {
+		if (isRemoveLeadingSlash()) {
 			actualDestination = actualDestination.substring(1);
 		}
 		Principal principal = SimpMessageHeaderAccessor.getUser(headers);
 		String user = (principal != null ? principal.getName() : null);
+		Assert.isTrue(user == null || !user.contains("%2F"), "Invalid sequence \"%2F\" in user name: " + user);
 		Set<String> sessionIds = Collections.singleton(sessionId);
 		return new ParseResult(sourceDestination, actualDestination, sourceDestination, sessionIds, user);
 	}
@@ -199,7 +203,7 @@ public class DefaultUserDestinationResolver implements UserDestinationResolver {
 			sessionIds = getSessionIdsByUser(userName, sessionId);
 		}
 
-		if (!this.keepLeadingSlash) {
+		if (isRemoveLeadingSlash()) {
 			actualDest = actualDest.substring(1);
 		}
 		return new ParseResult(sourceDest, actualDest, subscribeDest, sessionIds, userName);

@@ -1,11 +1,11 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -34,7 +34,8 @@ import java.util.Enumeration;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import javax.servlet.http.HttpServletRequest;
+
+import jakarta.servlet.http.HttpServletRequest;
 
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -50,6 +51,7 @@ import org.springframework.util.StringUtils;
  *
  * @author Arjen Poutsma
  * @author Rossen Stoyanchev
+ * @author Juergen Hoeller
  * @since 3.0
  */
 public class ServletServerHttpRequest implements ServerHttpRequest {
@@ -62,6 +64,9 @@ public class ServletServerHttpRequest implements ServerHttpRequest {
 	private final HttpServletRequest servletRequest;
 
 	@Nullable
+	private URI uri;
+
+	@Nullable
 	private HttpHeaders headers;
 
 	@Nullable
@@ -69,7 +74,8 @@ public class ServletServerHttpRequest implements ServerHttpRequest {
 
 
 	/**
-	 * Construct a new instance of the ServletServerHttpRequest based on the given {@link HttpServletRequest}.
+	 * Construct a new instance of the ServletServerHttpRequest based on the
+	 * given {@link HttpServletRequest}.
 	 * @param servletRequest the servlet request
 	 */
 	public ServletServerHttpRequest(HttpServletRequest servletRequest) {
@@ -86,23 +92,48 @@ public class ServletServerHttpRequest implements ServerHttpRequest {
 	}
 
 	@Override
+	public HttpMethod getMethod() {
+		return HttpMethod.valueOf(this.servletRequest.getMethod());
+	}
+
+	@Override
+	@Deprecated
 	public String getMethodValue() {
 		return this.servletRequest.getMethod();
 	}
 
 	@Override
 	public URI getURI() {
-		try {
-			StringBuffer url = this.servletRequest.getRequestURL();
-			String query = this.servletRequest.getQueryString();
-			if (StringUtils.hasText(query)) {
-				url.append('?').append(query);
+		if (this.uri == null) {
+			String urlString = null;
+			boolean hasQuery = false;
+			try {
+				StringBuffer url = this.servletRequest.getRequestURL();
+				String query = this.servletRequest.getQueryString();
+				hasQuery = StringUtils.hasText(query);
+				if (hasQuery) {
+					url.append('?').append(query);
+				}
+				urlString = url.toString();
+				this.uri = new URI(urlString);
 			}
-			return new URI(url.toString());
+			catch (URISyntaxException ex) {
+				if (!hasQuery) {
+					throw new IllegalStateException(
+							"Could not resolve HttpServletRequest as URI: " + urlString, ex);
+				}
+				// Maybe a malformed query string... try plain request URL
+				try {
+					urlString = this.servletRequest.getRequestURL().toString();
+					this.uri = new URI(urlString);
+				}
+				catch (URISyntaxException ex2) {
+					throw new IllegalStateException(
+							"Could not resolve HttpServletRequest as URI: " + urlString, ex2);
+				}
+			}
 		}
-		catch (URISyntaxException ex) {
-			throw new IllegalStateException("Could not get HttpServletRequest URI: " + ex.getMessage(), ex);
-		}
+		return this.uri;
 	}
 
 	@Override
@@ -110,8 +141,8 @@ public class ServletServerHttpRequest implements ServerHttpRequest {
 		if (this.headers == null) {
 			this.headers = new HttpHeaders();
 
-			for (Enumeration<?> headerNames = this.servletRequest.getHeaderNames(); headerNames.hasMoreElements();) {
-				String headerName = (String) headerNames.nextElement();
+			for (Enumeration<?> names = this.servletRequest.getHeaderNames(); names.hasMoreElements();) {
+				String headerName = (String) names.nextElement();
 				for (Enumeration<?> headerValues = this.servletRequest.getHeaders(headerName);
 						headerValues.hasMoreElements();) {
 					String headerValue = (String) headerValues.nextElement();
@@ -119,14 +150,17 @@ public class ServletServerHttpRequest implements ServerHttpRequest {
 				}
 			}
 
-			// HttpServletRequest exposes some headers as properties: we should include those if not already present
+			// HttpServletRequest exposes some headers as properties:
+			// we should include those if not already present
 			try {
 				MediaType contentType = this.headers.getContentType();
 				if (contentType == null) {
 					String requestContentType = this.servletRequest.getContentType();
 					if (StringUtils.hasLength(requestContentType)) {
 						contentType = MediaType.parseMediaType(requestContentType);
-						this.headers.setContentType(contentType);
+						if (contentType.isConcrete()) {
+							this.headers.setContentType(contentType);
+						}
 					}
 				}
 				if (contentType != null && contentType.getCharset() == null) {
@@ -136,8 +170,8 @@ public class ServletServerHttpRequest implements ServerHttpRequest {
 						Map<String, String> params = new LinkedCaseInsensitiveMap<>();
 						params.putAll(contentType.getParameters());
 						params.put("charset", charSet.toString());
-						MediaType newContentType = new MediaType(contentType.getType(), contentType.getSubtype(), params);
-						this.headers.setContentType(newContentType);
+						MediaType mediaType = new MediaType(contentType.getType(), contentType.getSubtype(), params);
+						this.headers.setContentType(mediaType);
 					}
 				}
 			}
@@ -184,10 +218,10 @@ public class ServletServerHttpRequest implements ServerHttpRequest {
 	@Override
 	public ServerHttpAsyncRequestControl getAsyncRequestControl(ServerHttpResponse response) {
 		if (this.asyncRequestControl == null) {
-			if (!ServletServerHttpResponse.class.isInstance(response)) {
-				throw new IllegalArgumentException("Response must be a ServletServerHttpResponse: " + response.getClass());
+			if (!(response instanceof ServletServerHttpResponse servletServerResponse)) {
+				throw new IllegalArgumentException(
+						"Response must be a ServletServerHttpResponse: " + response.getClass());
 			}
-			ServletServerHttpResponse servletServerResponse = (ServletServerHttpResponse) response;
 			this.asyncRequestControl = new ServletServerHttpAsyncRequestControl(this, servletServerResponse);
 		}
 		return this.asyncRequestControl;
@@ -201,7 +235,7 @@ public class ServletServerHttpRequest implements ServerHttpRequest {
 	}
 
 	/**
-	 * Use {@link javax.servlet.ServletRequest#getParameterMap()} to reconstruct the
+	 * Use {@link jakarta.servlet.ServletRequest#getParameterMap()} to reconstruct the
 	 * body of a form 'POST' providing a predictable outcome as opposed to reading
 	 * from the body, which can fail if any other code has used the ServletRequest
 	 * to access a parameter, thus causing the input stream to be "consumed".
@@ -211,21 +245,22 @@ public class ServletServerHttpRequest implements ServerHttpRequest {
 		Writer writer = new OutputStreamWriter(bos, FORM_CHARSET);
 
 		Map<String, String[]> form = request.getParameterMap();
-		for (Iterator<String> nameIterator = form.keySet().iterator(); nameIterator.hasNext();) {
-			String name = nameIterator.next();
-			List<String> values = Arrays.asList(form.get(name));
+		for (Iterator<Map.Entry<String, String[]>> entryIterator = form.entrySet().iterator(); entryIterator.hasNext();) {
+			Map.Entry<String, String[]> entry = entryIterator.next();
+			String name = entry.getKey();
+			List<String> values = Arrays.asList(entry.getValue());
 			for (Iterator<String> valueIterator = values.iterator(); valueIterator.hasNext();) {
 				String value = valueIterator.next();
-				writer.write(URLEncoder.encode(name, FORM_CHARSET.name()));
+				writer.write(URLEncoder.encode(name, FORM_CHARSET));
 				if (value != null) {
 					writer.write('=');
-					writer.write(URLEncoder.encode(value, FORM_CHARSET.name()));
+					writer.write(URLEncoder.encode(value, FORM_CHARSET));
 					if (valueIterator.hasNext()) {
 						writer.write('&');
 					}
 				}
 			}
-			if (nameIterator.hasNext()) {
+			if (entryIterator.hasNext()) {
 				writer.append('&');
 			}
 		}

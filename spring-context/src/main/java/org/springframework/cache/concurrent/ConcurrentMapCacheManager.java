@@ -1,11 +1,11 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -38,8 +38,7 @@ import org.springframework.lang.Nullable;
  * <p>Note: This is by no means a sophisticated CacheManager; it comes with no
  * cache configuration options. However, it may be useful for testing or simple
  * caching scenarios. For advanced local caching needs, consider
- * {@link org.springframework.cache.jcache.JCacheCacheManager},
- * {@link org.springframework.cache.ehcache.EhCacheCacheManager},
+ * {@link org.springframework.cache.jcache.JCacheCacheManager} or
  * {@link org.springframework.cache.caffeine.CaffeineCacheManager}.
  *
  * @author Juergen Hoeller
@@ -190,9 +189,7 @@ public class ConcurrentMapCacheManager implements CacheManager, BeanClassLoaderA
 	 */
 	protected Cache createConcurrentMapCache(String name) {
 		SerializationDelegate actualSerialization = (isStoreByValue() ? this.serialization : null);
-		return new ConcurrentMapCache(name, new ConcurrentHashMap<>(256),
-				isAllowNullValues(), actualSerialization);
-
+		return new ConcurrentMapCache(name, new ConcurrentHashMap<>(256), isAllowNullValues(), actualSerialization);
 	}
 
 }

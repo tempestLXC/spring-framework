@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -21,12 +21,12 @@ package org.springframework.jms;
  *
  * @author Mark Pollack
  * @since 1.1
- * @see javax.jms.MessageNotWriteableException
+ * @see jakarta.jms.MessageNotWriteableException
  */
 @SuppressWarnings("serial")
 public class MessageNotWriteableException extends JmsException {
 
-	public MessageNotWriteableException(javax.jms.MessageNotWriteableException cause) {
+	public MessageNotWriteableException(jakarta.jms.MessageNotWriteableException cause) {
 		super(cause);
 	}
 

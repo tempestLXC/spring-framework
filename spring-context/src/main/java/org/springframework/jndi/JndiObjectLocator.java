@@ -1,11 +1,11 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -28,7 +28,7 @@ import org.springframework.util.StringUtils;
  * providing configurable lookup of a specific JNDI resource.
  *
  * <p>Exposes a {@link #setJndiName "jndiName"} property. This may or may not
- * include the "java:comp/env/" prefix expected by Java EE applications when
+ * include the "java:comp/env/" prefix expected by Jakarta EE applications when
  * accessing a locally mapped (Environmental Naming Context) resource. If it
  * doesn't, the "java:comp/env/" prefix will be prepended if the "resourceRef"
  * property is true (the default is <strong>false</strong>) and no other scheme
@@ -103,7 +103,7 @@ public abstract class JndiObjectLocator extends JndiLocatorSupport implements In
 	 * Perform the actual JNDI lookup for this locator's target resource.
 	 * @return the located target object
 	 * @throws NamingException if the JNDI lookup failed or if the
-	 * located JNDI object is not assigable to the expected type
+	 * located JNDI object is not assignable to the expected type
 	 * @see #setJndiName
 	 * @see #setExpectedType
 	 * @see #lookup(String, Class)

@@ -1,11 +1,11 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -21,8 +21,6 @@ import java.io.ObjectInputStream;
 import java.io.Serializable;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
 import java.util.Map;
 import java.util.Optional;
 
@@ -33,12 +31,13 @@ import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.InjectionPoint;
 import org.springframework.beans.factory.NoUniqueBeanDefinitionException;
-import org.springframework.core.GenericTypeResolver;
 import org.springframework.core.KotlinDetector;
 import org.springframework.core.MethodParameter;
 import org.springframework.core.ParameterNameDiscoverer;
 import org.springframework.core.ResolvableType;
+import org.springframework.core.convert.TypeDescriptor;
 import org.springframework.lang.Nullable;
+import org.springframework.util.ObjectUtils;
 
 /**
  * Descriptor for a specific dependency that is about to be injected.
@@ -74,7 +73,10 @@ public class DependencyDescriptor extends InjectionPoint implements Serializable
 	private Class<?> containingClass;
 
 	@Nullable
-	private volatile ResolvableType resolvableType;
+	private transient volatile ResolvableType resolvableType;
+
+	@Nullable
+	private transient volatile TypeDescriptor typeDescriptor;
 
 
 	/**
@@ -167,7 +169,8 @@ public class DependencyDescriptor extends InjectionPoint implements Serializable
 
 		if (this.field != null) {
 			return !(this.field.getType() == Optional.class || hasNullableAnnotation() ||
-					(KotlinDetector.isKotlinType(this.field.getDeclaringClass()) &&
+					(KotlinDetector.isKotlinReflectPresent() &&
+							KotlinDetector.isKotlinType(this.field.getDeclaringClass()) &&
 							KotlinDelegate.isNullable(this.field)));
 		}
 		else {
@@ -177,7 +180,7 @@ public class DependencyDescriptor extends InjectionPoint implements Serializable
 
 	/**
 	 * Check whether the underlying field is annotated with any variant of a
-	 * {@code Nullable} annotation, e.g. {@code javax.annotation.Nullable} or
+	 * {@code Nullable} annotation, e.g. {@code jakarta.annotation.Nullable} or
 	 * {@code edu.umd.cs.findbugs.annotations.Nullable}.
 	 */
 	private boolean hasNullableAnnotation() {
@@ -208,10 +211,10 @@ public class DependencyDescriptor extends InjectionPoint implements Serializable
 	 * (qualifiers etc already applied)
 	 * @return a bean instance to proceed with, or {@code null} for none
 	 * @throws BeansException in case of the not-unique scenario being fatal
-	 * @since 4.3
+	 * @since 5.1
 	 */
 	@Nullable
-	public Object resolveNotUnique(Class<?> type, Map<String, Object> matchingBeans) throws BeansException {
+	public Object resolveNotUnique(ResolvableType type, Map<String, Object> matchingBeans) throws BeansException {
 		throw new NoUniqueBeanDefinitionException(type, matchingBeans.keySet());
 	}
 
@@ -254,13 +257,12 @@ public class DependencyDescriptor extends InjectionPoint implements Serializable
 
 	/**
 	 * Increase this descriptor's nesting level.
-	 * @see MethodParameter#increaseNestingLevel()
 	 */
 	public void increaseNestingLevel() {
 		this.nestingLevel++;
 		this.resolvableType = null;
 		if (this.methodParameter != null) {
-			this.methodParameter.increaseNestingLevel();
+			this.methodParameter = this.methodParameter.nested();
 		}
 	}
 
@@ -274,12 +276,12 @@ public class DependencyDescriptor extends InjectionPoint implements Serializable
 		this.containingClass = containingClass;
 		this.resolvableType = null;
 		if (this.methodParameter != null) {
-			GenericTypeResolver.resolveParameterType(this.methodParameter, containingClass);
+			this.methodParameter = this.methodParameter.withContainingClass(containingClass);
 		}
 	}
 
 	/**
-	 * Build a ResolvableType object for the wrapped parameter/field.
+	 * Build a {@link ResolvableType} object for the wrapped parameter/field.
 	 * @since 4.0
 	 */
 	public ResolvableType getResolvableType() {
@@ -294,9 +296,24 @@ public class DependencyDescriptor extends InjectionPoint implements Serializable
 	}
 
 	/**
+	 * Build a {@link TypeDescriptor} object for the wrapped parameter/field.
+	 * @since 5.1.4
+	 */
+	public TypeDescriptor getTypeDescriptor() {
+		TypeDescriptor typeDescriptor = this.typeDescriptor;
+		if (typeDescriptor == null) {
+			typeDescriptor = (this.field != null ?
+					new TypeDescriptor(getResolvableType(), getDependencyType(), getAnnotations()) :
+					new TypeDescriptor(obtainMethodParameter()));
+			this.typeDescriptor = typeDescriptor;
+		}
+		return typeDescriptor;
+	}
+
+	/**
 	 * Return whether a fallback match is allowed.
 	 * <p>This is {@code false} by default but may be overridden to return {@code true} in order
-	 * to suggest to a {@link org.springframework.beans.factory.support.AutowireCandidateResolver}
+	 * to suggest to an {@link org.springframework.beans.factory.support.AutowireCandidateResolver}
 	 * that a fallback match is acceptable as well.
 	 * @since 4.0
 	 */
@@ -332,7 +349,7 @@ public class DependencyDescriptor extends InjectionPoint implements Serializable
 
 	/**
 	 * Determine the name of the wrapped parameter/field.
-	 * @return the declared name (never {@code null})
+	 * @return the declared name (may be {@code null} if unresolvable)
 	 */
 	@Nullable
 	public String getDependencyName() {
@@ -346,24 +363,8 @@ public class DependencyDescriptor extends InjectionPoint implements Serializable
 	public Class<?> getDependencyType() {
 		if (this.field != null) {
 			if (this.nestingLevel > 1) {
-				Type type = this.field.getGenericType();
-				for (int i = 2; i <= this.nestingLevel; i++) {
-					if (type instanceof ParameterizedType) {
-						Type[] args = ((ParameterizedType) type).getActualTypeArguments();
-						type = args[args.length - 1];
-					}
-					// TODO: Object.class if unresolvable
-				}
-				if (type instanceof Class) {
-					return (Class<?>) type;
-				}
-				else if (type instanceof ParameterizedType) {
-					Type arg = ((ParameterizedType) type).getRawType();
-					if (arg instanceof Class) {
-						return (Class<?>) arg;
-					}
-				}
-				return Object.class;
+				Class<?> clazz = getResolvableType().getRawClass();
+				return (clazz != null ? clazz : Object.class);
 			}
 			else {
 				return this.field.getType();
@@ -376,7 +377,7 @@ public class DependencyDescriptor extends InjectionPoint implements Serializable
 
 
 	@Override
-	public boolean equals(Object other) {
+	public boolean equals(@Nullable Object other) {
 		if (this == other) {
 			return true;
 		}
@@ -386,6 +387,11 @@ public class DependencyDescriptor extends InjectionPoint implements Serializable
 		DependencyDescriptor otherDesc = (DependencyDescriptor) other;
 		return (this.required == otherDesc.required && this.eager == otherDesc.eager &&
 				this.nestingLevel == otherDesc.nestingLevel && this.containingClass == otherDesc.containingClass);
+	}
+
+	@Override
+	public int hashCode() {
+		return (31 * super.hashCode() + ObjectUtils.nullSafeHashCode(this.containingClass));
 	}
 
 
@@ -412,7 +418,7 @@ public class DependencyDescriptor extends InjectionPoint implements Serializable
 							this.declaringClass.getDeclaredConstructor(this.parameterTypes), this.parameterIndex);
 				}
 				for (int i = 1; i < this.nestingLevel; i++) {
-					this.methodParameter.increaseNestingLevel();
+					this.methodParameter = this.methodParameter.nested();
 				}
 			}
 		}

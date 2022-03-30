@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,7 +16,7 @@
 
 package org.springframework.web.context;
 
-import javax.servlet.ServletContext;
+import jakarta.servlet.ServletContext;
 
 import org.springframework.context.ApplicationContext;
 import org.springframework.lang.Nullable;
@@ -74,25 +74,25 @@ public interface WebApplicationContext extends ApplicationContext {
 
 	/**
 	 * Name of the ServletContext environment bean in the factory.
-	 * @see javax.servlet.ServletContext
+	 * @see jakarta.servlet.ServletContext
 	 */
 	String SERVLET_CONTEXT_BEAN_NAME = "servletContext";
 
 	/**
-	 * Name of the ServletContext/PortletContext init-params environment bean in the factory.
-	 * <p>Note: Possibly merged with ServletConfig/PortletConfig parameters.
+	 * Name of the ServletContext init-params environment bean in the factory.
+	 * <p>Note: Possibly merged with ServletConfig parameters.
 	 * ServletConfig parameters override ServletContext parameters of the same name.
-	 * @see javax.servlet.ServletContext#getInitParameterNames()
-	 * @see javax.servlet.ServletContext#getInitParameter(String)
-	 * @see javax.servlet.ServletConfig#getInitParameterNames()
-	 * @see javax.servlet.ServletConfig#getInitParameter(String)
+	 * @see jakarta.servlet.ServletContext#getInitParameterNames()
+	 * @see jakarta.servlet.ServletContext#getInitParameter(String)
+	 * @see jakarta.servlet.ServletConfig#getInitParameterNames()
+	 * @see jakarta.servlet.ServletConfig#getInitParameter(String)
 	 */
 	String CONTEXT_PARAMETERS_BEAN_NAME = "contextParameters";
 
 	/**
-	 * Name of the ServletContext/PortletContext attributes environment bean in the factory.
-	 * @see javax.servlet.ServletContext#getAttributeNames()
-	 * @see javax.servlet.ServletContext#getAttribute(String)
+	 * Name of the ServletContext attributes environment bean in the factory.
+	 * @see jakarta.servlet.ServletContext#getAttributeNames()
+	 * @see jakarta.servlet.ServletContext#getAttribute(String)
 	 */
 	String CONTEXT_ATTRIBUTES_BEAN_NAME = "contextAttributes";
 

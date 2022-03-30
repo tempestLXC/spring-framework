@@ -1,11 +1,11 @@
 /*
- * Copyright 2002-2015 the original author or authors.
+ * Copyright 2002-2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -25,9 +25,11 @@ import org.springframework.lang.Nullable;
 /**
  * Convenient TargetSourceCreator using bean name prefixes to create one of three
  * well-known TargetSource types:
- * <li>: CommonsPool2TargetSource
- * <li>% ThreadLocalTargetSource
- * <li>! PrototypeTargetSource
+ * <ul>
+ * <li>: CommonsPool2TargetSource</li>
+ * <li>% ThreadLocalTargetSource</li>
+ * <li>! PrototypeTargetSource</li>
+ * </ul>
  *
  * @author Rod Johnson
  * @author Stephane Nicoll
@@ -37,8 +39,19 @@ import org.springframework.lang.Nullable;
  */
 public class QuickTargetSourceCreator extends AbstractBeanFactoryBasedTargetSourceCreator {
 
+	/**
+	 * The CommonsPool2TargetSource prefix.
+	 */
 	public static final String PREFIX_COMMONS_POOL = ":";
+
+	/**
+	 * The ThreadLocalTargetSource prefix.
+	 */
 	public static final String PREFIX_THREAD_LOCAL = "%";
+
+	/**
+	 * The PrototypeTargetSource prefix.
+	 */
 	public static final String PREFIX_PROTOTYPE = "!";
 
 	@Override

@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,8 +16,8 @@
 
 package org.springframework.web.servlet;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 import org.springframework.web.method.HandlerMethod;
 
@@ -38,7 +38,7 @@ import org.springframework.web.method.HandlerMethod;
  * invokes {@code preHandle}, {@code postHandle}, and {@code afterCompletion}.
  * To distinguish between the initial request and the subsequent dispatch
  * after asynchronous handling completes, interceptors can check whether the
- * {@code javax.servlet.DispatcherType} of {@link javax.servlet.ServletRequest}
+ * {@code jakarta.servlet.DispatcherType} of {@link jakarta.servlet.ServletRequest}
  * is {@code "REQUEST"} or {@code "ASYNC"}.
  *
  * <p>Note that {@code HandlerInterceptor} implementations may need to do work

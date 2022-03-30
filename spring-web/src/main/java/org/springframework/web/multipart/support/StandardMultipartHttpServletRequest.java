@@ -1,11 +1,11 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -22,6 +22,7 @@ import java.io.InputStream;
 import java.io.Serializable;
 import java.io.UnsupportedEncodingException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -30,9 +31,10 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
-import javax.mail.internet.MimeUtility;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.Part;
+
+import jakarta.mail.internet.MimeUtility;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.Part;
 
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
@@ -45,13 +47,14 @@ import org.springframework.web.multipart.MultipartException;
 import org.springframework.web.multipart.MultipartFile;
 
 /**
- * Spring MultipartHttpServletRequest adapter, wrapping a Servlet 3.0 HttpServletRequest
+ * Spring MultipartHttpServletRequest adapter, wrapping a Servlet HttpServletRequest
  * and its Part objects. Parameters get exposed through the native request's getParameter
  * methods - without any custom processing on our side.
  *
  * @author Juergen Hoeller
  * @author Rossen Stoyanchev
  * @since 3.1
+ * @see StandardServletMultipartResolver
  */
 public class StandardMultipartHttpServletRequest extends AbstractMultipartHttpServletRequest {
 
@@ -75,9 +78,10 @@ public class StandardMultipartHttpServletRequest extends AbstractMultipartHttpSe
 	 * @param lazyParsing whether multipart parsing should be triggered lazily on
 	 * first access of multipart files or parameters
 	 * @throws MultipartException if an immediate parsing attempt failed
+	 * @since 3.2.9
 	 */
-	public StandardMultipartHttpServletRequest(HttpServletRequest request,
-			boolean lazyParsing) throws MultipartException {
+	public StandardMultipartHttpServletRequest(HttpServletRequest request, boolean lazyParsing)
+			throws MultipartException {
 
 		super(request);
 		if (!lazyParsing) {
@@ -134,7 +138,7 @@ public class StandardMultipartHttpServletRequest extends AbstractMultipartHttpSe
 			return super.getParameterNames();
 		}
 
-		// Servlet 3.0 getParameterNames() not guaranteed to include multipart form items
+		// Servlet getParameterNames() not guaranteed to include multipart form items
 		// (e.g. on WebLogic 12) -> need to merge them here to be on the safe side
 		Set<String> paramNames = new LinkedHashSet<>();
 		Enumeration<String> paramEnum = super.getParameterNames();
@@ -154,10 +158,9 @@ public class StandardMultipartHttpServletRequest extends AbstractMultipartHttpSe
 			return super.getParameterMap();
 		}
 
-		// Servlet 3.0 getParameterMap() not guaranteed to include multipart form items
+		// Servlet getParameterMap() not guaranteed to include multipart form items
 		// (e.g. on WebLogic 12) -> need to merge them here to be on the safe side
-		Map<String, String[]> paramMap = new LinkedHashMap<>();
-		paramMap.putAll(super.getParameterMap());
+		Map<String, String[]> paramMap = new LinkedHashMap<>(super.getParameterMap());
 		for (String paramName : this.multipartParameterNames) {
 			if (!paramMap.containsKey(paramName)) {
 				paramMap.put(paramName, getParameterValues(paramName));
@@ -199,7 +202,7 @@ public class StandardMultipartHttpServletRequest extends AbstractMultipartHttpSe
 
 
 	/**
-	 * Spring MultipartFile adapter, wrapping a Servlet 3.0 Part object.
+	 * Spring MultipartFile adapter, wrapping a Servlet Part object.
 	 */
 	@SuppressWarnings("serial")
 	private static class StandardMultipartFile implements MultipartFile, Serializable {
@@ -252,7 +255,7 @@ public class StandardMultipartHttpServletRequest extends AbstractMultipartHttpSe
 		public void transferTo(File dest) throws IOException, IllegalStateException {
 			this.part.write(dest.getPath());
 			if (dest.isAbsolute() && !dest.exists()) {
-				// Servlet 3.0 Part.write is not guaranteed to support absolute file paths:
+				// Servlet Part.write is not guaranteed to support absolute file paths:
 				// may translate the given path to a relative location within a temp dir
 				// (e.g. on Jetty whereas Tomcat and Undertow detect absolute paths).
 				// At least we offloaded the file from memory storage; it'll get deleted
@@ -260,6 +263,11 @@ public class StandardMultipartHttpServletRequest extends AbstractMultipartHttpSe
 				// we can manually copy it to the requested location as a fallback.
 				FileCopyUtils.copy(this.part.getInputStream(), Files.newOutputStream(dest.toPath()));
 			}
+		}
+
+		@Override
+		public void transferTo(Path dest) throws IOException, IllegalStateException {
+			FileCopyUtils.copy(this.part.getInputStream(), Files.newOutputStream(dest));
 		}
 	}
 

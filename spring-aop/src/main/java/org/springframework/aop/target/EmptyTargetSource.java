@@ -1,11 +1,11 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -30,9 +30,9 @@ import org.springframework.util.ObjectUtils;
  * @author Rod Johnson
  * @author Juergen Hoeller
  */
-public class EmptyTargetSource implements TargetSource, Serializable {
+public final class EmptyTargetSource implements TargetSource, Serializable {
 
-	/** use serialVersionUID from Spring 1.2 for interoperability */
+	/** use serialVersionUID from Spring 1.2 for interoperability. */
 	private static final long serialVersionUID = 3680494563553489691L;
 
 
@@ -135,10 +135,9 @@ public class EmptyTargetSource implements TargetSource, Serializable {
 		if (this == other) {
 			return true;
 		}
-		if (!(other instanceof EmptyTargetSource)) {
+		if (!(other instanceof EmptyTargetSource otherTs)) {
 			return false;
 		}
-		EmptyTargetSource otherTs = (EmptyTargetSource) other;
 		return (ObjectUtils.nullSafeEquals(this.targetClass, otherTs.targetClass) && this.isStatic == otherTs.isStatic);
 	}
 

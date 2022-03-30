@@ -1,11 +1,11 @@
 /*
- * Copyright 2002-2016 the original author or authors.
+ * Copyright 2002-2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -21,16 +21,16 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import javax.websocket.Decoder;
-import javax.websocket.Encoder;
-import javax.websocket.Endpoint;
-import javax.websocket.Extension;
-import javax.websocket.server.ServerEndpointConfig;
+import jakarta.websocket.Decoder;
+import jakarta.websocket.Encoder;
+import jakarta.websocket.Endpoint;
+import jakarta.websocket.Extension;
+import jakarta.websocket.server.ServerEndpointConfig;
 
 import org.springframework.util.Assert;
 
 /**
- * Default implementation of {@link javax.websocket.server.ServerEndpointConfig}
+ * Default implementation of {@link jakarta.websocket.server.ServerEndpointConfig}
  * for use in {@code RequestUpgradeStrategy} implementations.
  *
  * @author Violeta Georgieva
@@ -48,7 +48,7 @@ class DefaultServerEndpointConfig extends ServerEndpointConfig.Configurator
 
 
 	/**
-	 * Constructor with a path and an {@code javax.websocket.Endpoint}.
+	 * Constructor with a path and an {@code jakarta.websocket.Endpoint}.
 	 * @param path the endpoint path
 	 * @param endpoint the endpoint instance
 	 */

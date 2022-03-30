@@ -1,11 +1,11 @@
 /*
- * Copyright 2002-2012 the original author or authors.
+ * Copyright 2002-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -37,11 +37,11 @@ import org.springframework.util.ObjectUtils;
  */
 public class SingletonTargetSource implements TargetSource, Serializable {
 
-	/** use serialVersionUID from Spring 1.2 for interoperability */
+	/** use serialVersionUID from Spring 1.2 for interoperability. */
 	private static final long serialVersionUID = 9031246629662423738L;
 
 
-	/** Target cached and invoked using reflection */
+	/** Target cached and invoked using reflection. */
 	private final Object target;
 
 
@@ -85,10 +85,9 @@ public class SingletonTargetSource implements TargetSource, Serializable {
 		if (this == other) {
 			return true;
 		}
-		if (!(other instanceof SingletonTargetSource)) {
+		if (!(other instanceof SingletonTargetSource otherTargetSource)) {
 			return false;
 		}
-		SingletonTargetSource otherTargetSource = (SingletonTargetSource) other;
 		return this.target.equals(otherTargetSource.target);
 	}
 

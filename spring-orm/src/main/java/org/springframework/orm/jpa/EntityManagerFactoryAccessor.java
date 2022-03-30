@@ -1,11 +1,11 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -19,9 +19,9 @@ package org.springframework.orm.jpa;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
-import javax.persistence.EntityManager;
-import javax.persistence.EntityManagerFactory;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityManagerFactory;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -43,7 +43,7 @@ import org.springframework.util.CollectionUtils;
  */
 public abstract class EntityManagerFactoryAccessor implements BeanFactoryAware {
 
-	/** Logger available to subclasses */
+	/** Logger available to subclasses. */
 	protected final Log logger = LogFactory.getLog(getClass());
 
 	@Nullable
@@ -58,8 +58,8 @@ public abstract class EntityManagerFactoryAccessor implements BeanFactoryAware {
 	/**
 	 * Set the JPA EntityManagerFactory that should be used to create
 	 * EntityManagers.
-	 * @see javax.persistence.EntityManagerFactory#createEntityManager()
-	 * @see javax.persistence.EntityManagerFactory#createEntityManager(java.util.Map)
+	 * @see jakarta.persistence.EntityManagerFactory#createEntityManager()
+	 * @see jakarta.persistence.EntityManagerFactory#createEntityManager(java.util.Map)
 	 */
 	public void setEntityManagerFactory(@Nullable EntityManagerFactory emf) {
 		this.entityManagerFactory = emf;
@@ -111,7 +111,7 @@ public abstract class EntityManagerFactoryAccessor implements BeanFactoryAware {
 	 * {@code EntityManagerFactory.createEntityManager(Map)} (if any).
 	 * <p>Can be populated with a String "value" (parsed via PropertiesEditor)
 	 * or a "props" element in XML bean definitions.
-	 * @see javax.persistence.EntityManagerFactory#createEntityManager(java.util.Map)
+	 * @see jakarta.persistence.EntityManagerFactory#createEntityManager(java.util.Map)
 	 */
 	public void setJpaProperties(Properties jpaProperties) {
 		CollectionUtils.mergePropertiesIntoMap(jpaProperties, this.jpaPropertyMap);
@@ -121,7 +121,7 @@ public abstract class EntityManagerFactoryAccessor implements BeanFactoryAware {
 	 * Specify JPA properties as a Map, to be passed into
 	 * {@code EntityManagerFactory.createEntityManager(Map)} (if any).
 	 * <p>Can be populated with a "map" or "props" element in XML bean definitions.
-	 * @see javax.persistence.EntityManagerFactory#createEntityManager(java.util.Map)
+	 * @see jakarta.persistence.EntityManagerFactory#createEntityManager(java.util.Map)
 	 */
 	public void setJpaPropertyMap(@Nullable Map<String, Object> jpaProperties) {
 		if (jpaProperties != null) {
@@ -146,11 +146,10 @@ public abstract class EntityManagerFactoryAccessor implements BeanFactoryAware {
 	@Override
 	public void setBeanFactory(BeanFactory beanFactory) throws BeansException {
 		if (getEntityManagerFactory() == null) {
-			if (!(beanFactory instanceof ListableBeanFactory)) {
+			if (!(beanFactory instanceof ListableBeanFactory lbf)) {
 				throw new IllegalStateException("Cannot retrieve EntityManagerFactory by persistence unit name " +
 						"in a non-listable BeanFactory: " + beanFactory);
 			}
-			ListableBeanFactory lbf = (ListableBeanFactory) beanFactory;
 			setEntityManagerFactory(EntityManagerFactoryUtils.findEntityManagerFactory(lbf, getPersistenceUnitName()));
 		}
 	}
@@ -161,8 +160,8 @@ public abstract class EntityManagerFactoryAccessor implements BeanFactoryAware {
 	 * <p>Can be overridden in subclasses to create specific EntityManager variants.
 	 * @return a new EntityManager
 	 * @throws IllegalStateException if this accessor is not configured with an EntityManagerFactory
-	 * @see javax.persistence.EntityManagerFactory#createEntityManager()
-	 * @see javax.persistence.EntityManagerFactory#createEntityManager(java.util.Map)
+	 * @see jakarta.persistence.EntityManagerFactory#createEntityManager()
+	 * @see jakarta.persistence.EntityManagerFactory#createEntityManager(java.util.Map)
 	 */
 	protected EntityManager createEntityManager() throws IllegalStateException {
 		EntityManagerFactory emf = obtainEntityManagerFactory();
@@ -174,8 +173,8 @@ public abstract class EntityManagerFactoryAccessor implements BeanFactoryAware {
 	 * Obtain the transactional EntityManager for this accessor's EntityManagerFactory, if any.
 	 * @return the transactional EntityManager, or {@code null} if none
 	 * @throws IllegalStateException if this accessor is not configured with an EntityManagerFactory
-	 * @see EntityManagerFactoryUtils#getTransactionalEntityManager(javax.persistence.EntityManagerFactory)
-	 * @see EntityManagerFactoryUtils#getTransactionalEntityManager(javax.persistence.EntityManagerFactory, java.util.Map)
+	 * @see EntityManagerFactoryUtils#getTransactionalEntityManager(jakarta.persistence.EntityManagerFactory)
+	 * @see EntityManagerFactoryUtils#getTransactionalEntityManager(jakarta.persistence.EntityManagerFactory, java.util.Map)
 	 */
 	@Nullable
 	protected EntityManager getTransactionalEntityManager() throws IllegalStateException{

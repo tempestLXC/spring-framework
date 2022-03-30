@@ -1,11 +1,11 @@
 /*
- * Copyright 2002-2016 the original author or authors.
+ * Copyright 2002-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,7 +16,7 @@
 
 package org.springframework.web.context.request;
 
-import javax.faces.context.FacesContext;
+import jakarta.faces.context.FacesContext;
 
 import org.springframework.core.NamedInheritableThreadLocal;
 import org.springframework.core.NamedThreadLocal;
@@ -45,7 +45,7 @@ import org.springframework.util.ClassUtils;
 public abstract class RequestContextHolder  {
 
 	private static final boolean jsfPresent =
-			ClassUtils.isPresent("javax.faces.context.FacesContext", RequestContextHolder.class.getClassLoader());
+			ClassUtils.isPresent("jakarta.faces.context.FacesContext", RequestContextHolder.class.getClassLoader());
 
 	private static final ThreadLocal<RequestAttributes> requestAttributesHolder =
 			new NamedThreadLocal<>("Request attributes");
@@ -119,7 +119,7 @@ public abstract class RequestContextHolder  {
 	 * @see #setRequestAttributes
 	 * @see ServletRequestAttributes
 	 * @see FacesRequestAttributes
-	 * @see javax.faces.context.FacesContext#getCurrentInstance()
+	 * @see jakarta.faces.context.FacesContext#getCurrentInstance()
 	 */
 	public static RequestAttributes currentRequestAttributes() throws IllegalStateException {
 		RequestAttributes attributes = getRequestAttributes();
@@ -132,7 +132,7 @@ public abstract class RequestContextHolder  {
 						"Are you referring to request attributes outside of an actual web request, " +
 						"or processing a request outside of the originally receiving thread? " +
 						"If you are actually operating within a web request and still receive this message, " +
-						"your code is probably running outside of DispatcherServlet/DispatcherPortlet: " +
+						"your code is probably running outside of DispatcherServlet: " +
 						"In this case, use RequestContextListener or RequestContextFilter to expose the current request.");
 			}
 		}
@@ -147,8 +147,14 @@ public abstract class RequestContextHolder  {
 
 		@Nullable
 		public static RequestAttributes getFacesRequestAttributes() {
-			FacesContext facesContext = FacesContext.getCurrentInstance();
-			return (facesContext != null ? new FacesRequestAttributes(facesContext) : null);
+			try {
+				FacesContext facesContext = FacesContext.getCurrentInstance();
+				return (facesContext != null ? new FacesRequestAttributes(facesContext) : null);
+			}
+			catch (NoClassDefFoundError err) {
+				// typically for com/sun/faces/util/Util if only the JSF API jar is present
+				return null;
+			}
 		}
 	}
 

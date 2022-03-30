@@ -1,11 +1,11 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-2020 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -23,10 +23,11 @@ import java.security.Principal;
 import java.time.ZoneId;
 import java.util.Locale;
 import java.util.TimeZone;
-import javax.servlet.ServletRequest;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpSession;
-import javax.servlet.http.PushBuilder;
+
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
+import jakarta.servlet.http.PushBuilder;
 
 import org.springframework.core.MethodParameter;
 import org.springframework.http.HttpMethod;
@@ -41,14 +42,17 @@ import org.springframework.web.multipart.MultipartRequest;
 import org.springframework.web.servlet.support.RequestContextUtils;
 
 /**
- * Resolves request-related method argument values of the following types:
+ * Resolves servlet backed request-related method arguments. Supports values of the
+ * following types:
  * <ul>
  * <li>{@link WebRequest}
  * <li>{@link ServletRequest}
  * <li>{@link MultipartRequest}
  * <li>{@link HttpSession}
  * <li>{@link PushBuilder} (as of Spring 5.0 on Servlet 4.0)
- * <li>{@link Principal}
+ * <li>{@link Principal} but only if not annotated in order to allow custom
+ * resolvers to resolve it, and the falling back on
+ * {@link PrincipalMethodArgumentResolver}.
  * <li>{@link InputStream}
  * <li>{@link Reader}
  * <li>{@link HttpMethod} (as of Spring 4.0)
@@ -69,7 +73,7 @@ public class ServletRequestMethodArgumentResolver implements HandlerMethodArgume
 
 	static {
 		try {
-			pushBuilder = ClassUtils.forName("javax.servlet.http.PushBuilder",
+			pushBuilder = ClassUtils.forName("jakarta.servlet.http.PushBuilder",
 					ServletRequestMethodArgumentResolver.class.getClassLoader());
 		}
 		catch (ClassNotFoundException ex) {
@@ -87,7 +91,7 @@ public class ServletRequestMethodArgumentResolver implements HandlerMethodArgume
 				MultipartRequest.class.isAssignableFrom(paramType) ||
 				HttpSession.class.isAssignableFrom(paramType) ||
 				(pushBuilder != null && pushBuilder.isAssignableFrom(paramType)) ||
-				Principal.class.isAssignableFrom(paramType) ||
+				(Principal.class.isAssignableFrom(paramType) && !parameter.hasParameterAnnotations()) ||
 				InputStream.class.isAssignableFrom(paramType) ||
 				Reader.class.isAssignableFrom(paramType) ||
 				HttpMethod.class == paramType ||
@@ -167,7 +171,7 @@ public class ServletRequestMethodArgumentResolver implements HandlerMethodArgume
 			return userPrincipal;
 		}
 		else if (HttpMethod.class == paramType) {
-			return HttpMethod.resolve(request.getMethod());
+			return HttpMethod.valueOf(request.getMethod());
 		}
 		else if (Locale.class == paramType) {
 			return RequestContextUtils.getLocale(request);

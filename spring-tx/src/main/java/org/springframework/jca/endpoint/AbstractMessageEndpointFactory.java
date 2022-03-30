@@ -1,11 +1,11 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,15 +17,16 @@
 package org.springframework.jca.endpoint;
 
 import java.lang.reflect.Method;
-import javax.resource.ResourceException;
-import javax.resource.spi.ApplicationServerInternalException;
-import javax.resource.spi.UnavailableException;
-import javax.resource.spi.endpoint.MessageEndpoint;
-import javax.resource.spi.endpoint.MessageEndpointFactory;
-import javax.transaction.Transaction;
-import javax.transaction.TransactionManager;
+
 import javax.transaction.xa.XAResource;
 
+import jakarta.resource.ResourceException;
+import jakarta.resource.spi.ApplicationServerInternalException;
+import jakarta.resource.spi.UnavailableException;
+import jakarta.resource.spi.endpoint.MessageEndpoint;
+import jakarta.resource.spi.endpoint.MessageEndpointFactory;
+import jakarta.transaction.Transaction;
+import jakarta.transaction.TransactionManager;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -37,7 +38,7 @@ import org.springframework.util.Assert;
 
 /**
  * Abstract base implementation of the JCA 1.7
- * {@link javax.resource.spi.endpoint.MessageEndpointFactory} interface,
+ * {@link jakarta.resource.spi.endpoint.MessageEndpointFactory} interface,
  * providing transaction management capabilities as well as ClassLoader
  * exposure for endpoint invocations.
  *
@@ -47,7 +48,7 @@ import org.springframework.util.Assert;
  */
 public abstract class AbstractMessageEndpointFactory implements MessageEndpointFactory, BeanNameAware {
 
-	/** Logger available to subclasses */
+	/** Logger available to subclasses. */
 	protected final Log logger = LogFactory.getLog(getClass());
 
 	@Nullable
@@ -67,7 +68,7 @@ public abstract class AbstractMessageEndpointFactory implements MessageEndpointF
 	 * invocations, enlisting the endpoint resource in each such transaction.
 	 * <p>The passed-in object may be a transaction manager which implements
 	 * Spring's {@link org.springframework.transaction.jta.TransactionFactory}
-	 * interface, or a plain {@link javax.transaction.TransactionManager}.
+	 * interface, or a plain {@link jakarta.transaction.TransactionManager}.
 	 * <p>If no transaction manager is specified, the endpoint invocation
 	 * will simply not be wrapped in an XA transaction. Check out your
 	 * resource provider's ActivationSpec documentation for local
@@ -85,7 +86,7 @@ public abstract class AbstractMessageEndpointFactory implements MessageEndpointF
 		else {
 			throw new IllegalArgumentException("Transaction manager [" + transactionManager +
 					"] is neither a [org.springframework.transaction.jta.TransactionFactory} nor a " +
-					"[javax.transaction.TransactionManager]");
+					"[jakarta.transaction.TransactionManager]");
 		}
 	}
 
@@ -269,9 +270,10 @@ public abstract class AbstractMessageEndpointFactory implements MessageEndpointF
 		 * endpoint throwing an exception.
 		 * @param ex the exception thrown from the concrete endpoint
 		 */
-		protected final void onEndpointException(Throwable ex) {
+		protected void onEndpointException(Throwable ex) {
 			Assert.state(this.transactionDelegate != null, "Not initialized");
 			this.transactionDelegate.setRollbackOnly();
+			logger.debug("Transaction marked as rollback-only after endpoint exception", ex);
 		}
 
 		/**
@@ -291,6 +293,7 @@ public abstract class AbstractMessageEndpointFactory implements MessageEndpointF
 				this.transactionDelegate.endTransaction();
 			}
 			catch (Throwable ex) {
+				logger.warn("Failed to complete transaction after endpoint delivery", ex);
 				throw new ApplicationServerInternalException("Failed to complete transaction", ex);
 			}
 		}
@@ -303,7 +306,7 @@ public abstract class AbstractMessageEndpointFactory implements MessageEndpointF
 					this.transactionDelegate.endTransaction();
 				}
 				catch (Throwable ex) {
-					logger.error("Could not complete unfinished transaction on endpoint release", ex);
+					logger.warn("Could not complete unfinished transaction on endpoint release", ex);
 				}
 			}
 		}
@@ -325,11 +328,10 @@ public abstract class AbstractMessageEndpointFactory implements MessageEndpointF
 		private boolean rollbackOnly;
 
 		public TransactionDelegate(@Nullable XAResource xaResource) {
-			if (xaResource == null) {
-				if (transactionFactory != null && !transactionFactory.supportsResourceAdapterManagedTransactions()) {
-					throw new IllegalStateException("ResourceAdapter-provided XAResource is required for " +
-							"transaction management. Check your ResourceAdapter's configuration.");
-				}
+			if (xaResource == null && transactionFactory != null &&
+					!transactionFactory.supportsResourceAdapterManagedTransactions()) {
+				throw new IllegalStateException("ResourceAdapter-provided XAResource is required for " +
+						"transaction management. Check your ResourceAdapter's configuration.");
 			}
 			this.xaResource = xaResource;
 		}

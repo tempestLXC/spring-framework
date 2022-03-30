@@ -1,11 +1,11 @@
 /*
- * Copyright 2002-2016 the original author or authors.
+ * Copyright 2002-2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,10 +16,11 @@
 
 package org.springframework.web.servlet.mvc;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import javax.servlet.http.HttpSession;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.lang.Nullable;
 import org.springframework.web.servlet.ModelAndView;
@@ -30,7 +31,7 @@ import org.springframework.web.util.WebUtils;
  * Convenient superclass for controller implementations, using the Template Method
  * design pattern.
  *
- * <p><b><a name="workflow">Workflow
+ * <p><b>Workflow
  * (<a href="Controller.html#workflow">and that defined by interface</a>):</b><br>
  * <ol>
  * <li>{@link #handleRequest(HttpServletRequest, HttpServletResponse) handleRequest()}
@@ -50,7 +51,7 @@ import org.springframework.web.util.WebUtils;
  * (<a href="Controller.html#config">and those defined by interface</a>):</b><br>
  * <table border="1">
  * <tr>
- * <td><b>name</b></th>
+ * <td><b>name</b></td>
  * <td><b>default</b></td>
  * <td><b>description</b></td>
  * </tr>
@@ -135,7 +136,7 @@ public abstract class AbstractController extends WebContentGenerator implements 
 	 * different servlet containers; the only 100% safe way is a session mutex.
 	 * @see AbstractController#handleRequestInternal
 	 * @see org.springframework.web.util.HttpSessionMutexListener
-	 * @see org.springframework.web.util.WebUtils#getSessionMutex(javax.servlet.http.HttpSession)
+	 * @see org.springframework.web.util.WebUtils#getSessionMutex(jakarta.servlet.http.HttpSession)
 	 */
 	public final void setSynchronizeOnSession(boolean synchronizeOnSession) {
 		this.synchronizeOnSession = synchronizeOnSession;
@@ -155,7 +156,7 @@ public abstract class AbstractController extends WebContentGenerator implements 
 			throws Exception {
 
 		if (HttpMethod.OPTIONS.matches(request.getMethod())) {
-			response.setHeader("Allow", getAllowHeader());
+			response.setHeader(HttpHeaders.ALLOW, getAllowHeader());
 			return null;
 		}
 

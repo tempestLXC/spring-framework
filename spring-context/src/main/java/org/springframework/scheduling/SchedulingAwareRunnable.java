@@ -1,11 +1,11 @@
 /*
- * Copyright 2002-2012 the original author or authors.
+ * Copyright 2002-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,11 +17,8 @@
 package org.springframework.scheduling;
 
 /**
- * Extension of the Runnable interface, adding special callbacks
+ * Extension of the {@link Runnable} interface, adding special callbacks
  * for long-running operations.
- *
- * <p>This interface closely corresponds to the CommonJ Work interface,
- * but is kept separate to avoid a required CommonJ dependency.
  *
  * <p>Scheduling-capable TaskExecutors are encouraged to check a submitted
  * Runnable, detecting whether this interface is implemented and reacting
@@ -29,10 +26,8 @@ package org.springframework.scheduling;
  *
  * @author Juergen Hoeller
  * @since 2.0
- * @see commonj.work.Work
  * @see org.springframework.core.task.TaskExecutor
  * @see SchedulingTaskExecutor
- * @see org.springframework.scheduling.commonj.WorkManagerTaskExecutor
  */
 public interface SchedulingAwareRunnable extends Runnable {
 

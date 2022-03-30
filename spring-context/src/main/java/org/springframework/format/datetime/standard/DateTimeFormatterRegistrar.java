@@ -1,11 +1,11 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -21,10 +21,12 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.Month;
 import java.time.MonthDay;
 import java.time.OffsetDateTime;
 import java.time.OffsetTime;
 import java.time.Period;
+import java.time.Year;
 import java.time.YearMonth;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
@@ -48,7 +50,6 @@ import org.springframework.format.annotation.DateTimeFormat.ISO;
  * @see #setUseIsoFormat
  * @see org.springframework.format.FormatterRegistrar#registerFormatters
  * @see org.springframework.format.datetime.DateFormatterRegistrar
- * @see org.springframework.format.datetime.joda.DateTimeFormatterFactoryBean
  */
 public class DateTimeFormatterRegistrar implements FormatterRegistrar {
 
@@ -190,6 +191,8 @@ public class DateTimeFormatterRegistrar implements FormatterRegistrar {
 		registry.addFormatterForFieldType(Instant.class, new InstantFormatter());
 		registry.addFormatterForFieldType(Period.class, new PeriodFormatter());
 		registry.addFormatterForFieldType(Duration.class, new DurationFormatter());
+		registry.addFormatterForFieldType(Year.class, new YearFormatter());
+		registry.addFormatterForFieldType(Month.class, new MonthFormatter());
 		registry.addFormatterForFieldType(YearMonth.class, new YearMonthFormatter());
 		registry.addFormatterForFieldType(MonthDay.class, new MonthDayFormatter());
 
@@ -206,11 +209,11 @@ public class DateTimeFormatterRegistrar implements FormatterRegistrar {
 	}
 
 	private DateTimeFormatter getFallbackFormatter(Type type) {
-		switch (type) {
-			case DATE: return DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT);
-			case TIME: return DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT);
-			default: return DateTimeFormatter.ofLocalizedDateTime(FormatStyle.SHORT);
-		}
+		return switch (type) {
+			case DATE -> DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT);
+			case TIME -> DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT);
+			case DATE_TIME -> DateTimeFormatter.ofLocalizedDateTime(FormatStyle.SHORT);
+		};
 	}
 
 }

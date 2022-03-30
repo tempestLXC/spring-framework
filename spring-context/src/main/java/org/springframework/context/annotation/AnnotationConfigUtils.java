@@ -1,11 +1,11 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -23,10 +23,9 @@ import java.util.Set;
 
 import org.springframework.beans.factory.annotation.AnnotatedBeanDefinition;
 import org.springframework.beans.factory.annotation.AutowiredAnnotationBeanPostProcessor;
-import org.springframework.beans.factory.annotation.RequiredAnnotationBeanPostProcessor;
+import org.springframework.beans.factory.annotation.InitDestroyAnnotationBeanPostProcessor;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.beans.factory.config.BeanDefinitionHolder;
-import org.springframework.beans.factory.support.AbstractBeanDefinition;
 import org.springframework.beans.factory.support.BeanDefinitionRegistry;
 import org.springframework.beans.factory.support.DefaultListableBeanFactory;
 import org.springframework.beans.factory.support.RootBeanDefinition;
@@ -54,13 +53,12 @@ import org.springframework.util.ClassUtils;
  * @author Stephane Nicoll
  * @since 2.5
  * @see ContextAnnotationAutowireCandidateResolver
- * @see CommonAnnotationBeanPostProcessor
  * @see ConfigurationClassPostProcessor
+ * @see CommonAnnotationBeanPostProcessor
  * @see org.springframework.beans.factory.annotation.AutowiredAnnotationBeanPostProcessor
- * @see org.springframework.beans.factory.annotation.RequiredAnnotationBeanPostProcessor
  * @see org.springframework.orm.jpa.support.PersistenceAnnotationBeanPostProcessor
  */
-public class AnnotationConfigUtils {
+public abstract class AnnotationConfigUtils {
 
 	/**
 	 * The bean name of the internally managed Configuration annotation processor.
@@ -86,23 +84,22 @@ public class AnnotationConfigUtils {
 			"org.springframework.context.annotation.internalAutowiredAnnotationProcessor";
 
 	/**
-	 * The bean name of the internally managed Required annotation processor.
+	 * The bean name of the internally managed common annotation processor.
 	 */
-	public static final String REQUIRED_ANNOTATION_PROCESSOR_BEAN_NAME =
-			"org.springframework.context.annotation.internalRequiredAnnotationProcessor";
+	public static final String COMMON_ANNOTATION_PROCESSOR_BEAN_NAME =
+			"org.springframework.context.annotation.internalCommonAnnotationProcessor";
 
 	/**
 	 * The bean name of the internally managed JSR-250 annotation processor.
 	 */
-	public static final String COMMON_ANNOTATION_PROCESSOR_BEAN_NAME =
-			"org.springframework.context.annotation.internalCommonAnnotationProcessor";
+	private static final String JSR250_ANNOTATION_PROCESSOR_BEAN_NAME =
+			"org.springframework.context.annotation.internalJsr250AnnotationProcessor";
 
 	/**
 	 * The bean name of the internally managed JPA annotation processor.
 	 */
 	public static final String PERSISTENCE_ANNOTATION_PROCESSOR_BEAN_NAME =
 			"org.springframework.context.annotation.internalPersistenceAnnotationProcessor";
-
 
 	private static final String PERSISTENCE_ANNOTATION_PROCESSOR_CLASS_NAME =
 			"org.springframework.orm.jpa.support.PersistenceAnnotationBeanPostProcessor";
@@ -119,12 +116,18 @@ public class AnnotationConfigUtils {
 	public static final String EVENT_LISTENER_FACTORY_BEAN_NAME =
 			"org.springframework.context.event.internalEventListenerFactory";
 
+
+	private static final ClassLoader classLoader = AnnotationConfigUtils.class.getClassLoader();
+
+	private static final boolean jakartaAnnotationsPresent =
+			ClassUtils.isPresent("jakarta.annotation.PostConstruct", classLoader);
+
 	private static final boolean jsr250Present =
-			ClassUtils.isPresent("javax.annotation.Resource", AnnotationConfigUtils.class.getClassLoader());
+			ClassUtils.isPresent("javax.annotation.PostConstruct", classLoader);
 
 	private static final boolean jpaPresent =
-			ClassUtils.isPresent("javax.persistence.EntityManagerFactory", AnnotationConfigUtils.class.getClassLoader()) &&
-			ClassUtils.isPresent(PERSISTENCE_ANNOTATION_PROCESSOR_CLASS_NAME, AnnotationConfigUtils.class.getClassLoader());
+			ClassUtils.isPresent("jakarta.persistence.EntityManagerFactory", classLoader) &&
+					ClassUtils.isPresent(PERSISTENCE_ANNOTATION_PROCESSOR_CLASS_NAME, classLoader);
 
 
 	/**
@@ -156,7 +159,7 @@ public class AnnotationConfigUtils {
 			}
 		}
 
-		Set<BeanDefinitionHolder> beanDefs = new LinkedHashSet<>(4);
+		Set<BeanDefinitionHolder> beanDefs = new LinkedHashSet<>(8);
 
 		if (!registry.containsBeanDefinition(CONFIGURATION_ANNOTATION_PROCESSOR_BEAN_NAME)) {
 			RootBeanDefinition def = new RootBeanDefinition(ConfigurationClassPostProcessor.class);
@@ -170,17 +173,26 @@ public class AnnotationConfigUtils {
 			beanDefs.add(registerPostProcessor(registry, def, AUTOWIRED_ANNOTATION_PROCESSOR_BEAN_NAME));
 		}
 
-		if (!registry.containsBeanDefinition(REQUIRED_ANNOTATION_PROCESSOR_BEAN_NAME)) {
-			RootBeanDefinition def = new RootBeanDefinition(RequiredAnnotationBeanPostProcessor.class);
-			def.setSource(source);
-			beanDefs.add(registerPostProcessor(registry, def, REQUIRED_ANNOTATION_PROCESSOR_BEAN_NAME));
-		}
-
-		// Check for JSR-250 support, and if present add the CommonAnnotationBeanPostProcessor.
-		if (jsr250Present && !registry.containsBeanDefinition(COMMON_ANNOTATION_PROCESSOR_BEAN_NAME)) {
+		// Check for Jakarta Annotations support, and if present add the CommonAnnotationBeanPostProcessor.
+		if (jakartaAnnotationsPresent && !registry.containsBeanDefinition(COMMON_ANNOTATION_PROCESSOR_BEAN_NAME)) {
 			RootBeanDefinition def = new RootBeanDefinition(CommonAnnotationBeanPostProcessor.class);
 			def.setSource(source);
 			beanDefs.add(registerPostProcessor(registry, def, COMMON_ANNOTATION_PROCESSOR_BEAN_NAME));
+		}
+
+		// Check for JSR-250 support, and if present add an InitDestroyAnnotationBeanPostProcessor
+		// for the javax variant of PostConstruct/PreDestroy.
+		if (jsr250Present && !registry.containsBeanDefinition(JSR250_ANNOTATION_PROCESSOR_BEAN_NAME)) {
+			try {
+				RootBeanDefinition def = new RootBeanDefinition(InitDestroyAnnotationBeanPostProcessor.class);
+				def.getPropertyValues().add("initAnnotationType", classLoader.loadClass("javax.annotation.PostConstruct"));
+				def.getPropertyValues().add("destroyAnnotationType", classLoader.loadClass("javax.annotation.PreDestroy"));
+				def.setSource(source);
+				beanDefs.add(registerPostProcessor(registry, def, JSR250_ANNOTATION_PROCESSOR_BEAN_NAME));
+			}
+			catch (ClassNotFoundException ex) {
+				// Failed to load javax variants of the annotation types -> ignore.
+			}
 		}
 
 		// Check for JPA support, and if present add the PersistenceAnnotationBeanPostProcessor.
@@ -203,6 +215,7 @@ public class AnnotationConfigUtils {
 			def.setSource(source);
 			beanDefs.add(registerPostProcessor(registry, def, EVENT_LISTENER_PROCESSOR_BEAN_NAME));
 		}
+
 		if (!registry.containsBeanDefinition(EVENT_LISTENER_FACTORY_BEAN_NAME)) {
 			RootBeanDefinition def = new RootBeanDefinition(DefaultEventListenerFactory.class);
 			def.setSource(source);
@@ -257,16 +270,13 @@ public class AnnotationConfigUtils {
 			abd.setDependsOn(dependsOn.getStringArray("value"));
 		}
 
-		if (abd instanceof AbstractBeanDefinition) {
-			AbstractBeanDefinition absBd = (AbstractBeanDefinition) abd;
-			AnnotationAttributes role = attributesFor(metadata, Role.class);
-			if (role != null) {
-				absBd.setRole(role.getNumber("value").intValue());
-			}
-			AnnotationAttributes description = attributesFor(metadata, Description.class);
-			if (description != null) {
-				absBd.setDescription(description.getString("value"));
-			}
+		AnnotationAttributes role = attributesFor(metadata, Role.class);
+		if (role != null) {
+			abd.setRole(role.getNumber("value").intValue());
+		}
+		AnnotationAttributes description = attributesFor(metadata, Description.class);
+		if (description != null) {
+			abd.setDescription(description.getString("value"));
 		}
 	}
 
@@ -288,7 +298,7 @@ public class AnnotationConfigUtils {
 
 	@Nullable
 	static AnnotationAttributes attributesFor(AnnotatedTypeMetadata metadata, String annotationClassName) {
-		return AnnotationAttributes.fromMap(metadata.getAnnotationAttributes(annotationClassName, false));
+		return AnnotationAttributes.fromMap(metadata.getAnnotationAttributes(annotationClassName));
 	}
 
 	static Set<AnnotationAttributes> attributesForRepeatable(AnnotationMetadata metadata,
@@ -298,18 +308,23 @@ public class AnnotationConfigUtils {
 	}
 
 	@SuppressWarnings("unchecked")
-	static Set<AnnotationAttributes> attributesForRepeatable(AnnotationMetadata metadata,
-			String containerClassName, String annotationClassName) {
+	static Set<AnnotationAttributes> attributesForRepeatable(
+			AnnotationMetadata metadata, String containerClassName, String annotationClassName) {
 
 		Set<AnnotationAttributes> result = new LinkedHashSet<>();
-		addAttributesIfNotNull(result, metadata.getAnnotationAttributes(annotationClassName, false));
 
-		Map<String, Object> container = metadata.getAnnotationAttributes(containerClassName, false);
+		// Direct annotation present?
+		addAttributesIfNotNull(result, metadata.getAnnotationAttributes(annotationClassName));
+
+		// Container annotation present?
+		Map<String, Object> container = metadata.getAnnotationAttributes(containerClassName);
 		if (container != null && container.containsKey("value")) {
 			for (Map<String, Object> containedAttributes : (Map<String, Object>[]) container.get("value")) {
 				addAttributesIfNotNull(result, containedAttributes);
 			}
 		}
+
+		// Return merged result
 		return Collections.unmodifiableSet(result);
 	}
 

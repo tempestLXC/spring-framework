@@ -1,11 +1,11 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -23,7 +23,6 @@ import java.util.List;
 
 import org.springframework.core.Ordered;
 import org.springframework.http.MediaType;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 
 /**
@@ -35,14 +34,17 @@ import org.springframework.util.Assert;
  */
 public abstract class ViewResolverSupport implements Ordered {
 
+	/**
+	 * The default {@link MediaType content-type} for views.
+	 */
 	public static final MediaType DEFAULT_CONTENT_TYPE = MediaType.parseMediaType("text/html;charset=UTF-8");
 
 
-	private List<MediaType> mediaTypes = new ArrayList<>(4);
+	private final List<MediaType> mediaTypes = new ArrayList<>(4);
 
 	private Charset defaultCharset = StandardCharsets.UTF_8;
 
-	private int order = Integer.MAX_VALUE;
+	private int order = Ordered.LOWEST_PRECEDENCE;
 
 
 	public ViewResolverSupport() {
@@ -54,12 +56,10 @@ public abstract class ViewResolverSupport implements Ordered {
 	 * Set the supported media types for this view.
 	 * Default is "text/html;charset=UTF-8".
 	 */
-	public void setSupportedMediaTypes(@Nullable List<MediaType> supportedMediaTypes) {
+	public void setSupportedMediaTypes(List<MediaType> supportedMediaTypes) {
 		Assert.notEmpty(supportedMediaTypes, "MediaType List must not be empty");
 		this.mediaTypes.clear();
-		if (supportedMediaTypes != null) {
-			this.mediaTypes.addAll(supportedMediaTypes);
-		}
+		this.mediaTypes.addAll(supportedMediaTypes);
 	}
 
 	/**
@@ -87,17 +87,15 @@ public abstract class ViewResolverSupport implements Ordered {
 		return this.defaultCharset;
 	}
 
-
 	/**
-	 * Set the order in which this {@link ViewResolver} is evaluated.
+	 * Specify the order value for this ViewResolver bean.
+	 * <p>The default value is {@code Ordered.LOWEST_PRECEDENCE}, meaning non-ordered.
+	 * @see org.springframework.core.Ordered#getOrder()
 	 */
 	public void setOrder(int order) {
 		this.order = order;
 	}
 
-	/**
-	 * Return the order in which this {@link ViewResolver} is evaluated.
-	 */
 	@Override
 	public int getOrder() {
 		return this.order;

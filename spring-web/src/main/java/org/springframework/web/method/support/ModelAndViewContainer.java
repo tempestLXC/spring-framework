@@ -1,11 +1,11 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -20,7 +20,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.lang.Nullable;
 import org.springframework.ui.Model;
 import org.springframework.ui.ModelMap;
@@ -30,8 +30,8 @@ import org.springframework.web.bind.support.SimpleSessionStatus;
 
 /**
  * Records model and view related decisions made by
- * {@link HandlerMethodArgumentResolver}s and
- * {@link HandlerMethodReturnValueHandler}s during the course of invocation of
+ * {@link HandlerMethodArgumentResolver HandlerMethodArgumentResolvers} and
+ * {@link HandlerMethodReturnValueHandler HandlerMethodReturnValueHandlers} during the course of invocation of
  * a controller method.
  *
  * <p>The {@link #setRequestHandled} flag can be used to indicate the request
@@ -62,7 +62,7 @@ public class ModelAndViewContainer {
 	private boolean redirectModelScenario = false;
 
 	@Nullable
-	private HttpStatus status;
+	private HttpStatusCode status;
 
 	private final Set<String> noBinding = new HashSet<>(4);
 
@@ -172,9 +172,9 @@ public class ModelAndViewContainer {
 
 	/**
 	 * Provide a separate model instance to use in a redirect scenario.
-	 * The provided additional model however is not used unless
-	 * {@link #setRedirectModelScenario(boolean)} gets set to {@code true} to signal
-	 * a redirect scenario.
+	 * <p>The provided additional model however is not used unless
+	 * {@link #setRedirectModelScenario} gets set to {@code true}
+	 * to signal an actual redirect scenario.
 	 */
 	public void setRedirectModel(ModelMap redirectModel) {
 		this.redirectModel = redirectModel;
@@ -193,7 +193,7 @@ public class ModelAndViewContainer {
 	 * {@code ModelAndView} used for view rendering purposes.
 	 * @since 4.3
 	 */
-	public void setStatus(@Nullable HttpStatus status) {
+	public void setStatus(@Nullable HttpStatusCode status) {
 		this.status = status;
 	}
 
@@ -202,7 +202,7 @@ public class ModelAndViewContainer {
 	 * @since 4.3
 	 */
 	@Nullable
-	public HttpStatus getStatus() {
+	public HttpStatusCode getStatus() {
 		return this.status;
 	}
 
@@ -333,7 +333,7 @@ public class ModelAndViewContainer {
 		StringBuilder sb = new StringBuilder("ModelAndViewContainer: ");
 		if (!isRequestHandled()) {
 			if (isViewReference()) {
-				sb.append("reference to view with name '").append(this.view).append("'");
+				sb.append("reference to view with name '").append(this.view).append('\'');
 			}
 			else {
 				sb.append("View is [").append(this.view).append(']');

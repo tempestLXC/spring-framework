@@ -1,11 +1,11 @@
 /*
- * Copyright 2002-2016 the original author or authors.
+ * Copyright 2002-2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -20,13 +20,14 @@ import java.io.Serializable;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
-import javax.jms.BytesMessage;
-import javax.jms.JMSException;
-import javax.jms.MapMessage;
-import javax.jms.Message;
-import javax.jms.ObjectMessage;
-import javax.jms.Session;
-import javax.jms.TextMessage;
+
+import jakarta.jms.BytesMessage;
+import jakarta.jms.JMSException;
+import jakarta.jms.MapMessage;
+import jakarta.jms.Message;
+import jakarta.jms.ObjectMessage;
+import jakarta.jms.Session;
+import jakarta.jms.TextMessage;
 
 import org.springframework.util.ObjectUtils;
 
@@ -36,9 +37,9 @@ import org.springframework.util.ObjectUtils;
  * by {@link org.springframework.jms.core.JmsTemplate}, for
  * {@code convertAndSend} and {@code receiveAndConvert} operations.
  *
- * <p>Converts a String to a {@link javax.jms.TextMessage}, a byte array to a
- * {@link javax.jms.BytesMessage}, a Map to a {@link javax.jms.MapMessage}, and
- * a Serializable object to a {@link javax.jms.ObjectMessage} (or vice versa).
+ * <p>Converts a String to a {@link jakarta.jms.TextMessage}, a byte array to a
+ * {@link jakarta.jms.BytesMessage}, a Map to a {@link jakarta.jms.MapMessage}, and
+ * a Serializable object to a {@link jakarta.jms.ObjectMessage} (or vice versa).
  *
  * @author Juergen Hoeller
  * @since 1.1
@@ -116,7 +117,7 @@ public class SimpleMessageConverter implements MessageConverter {
 	 * @param session current JMS session
 	 * @return the resulting message
 	 * @throws JMSException if thrown by JMS methods
-	 * @see javax.jms.Session#createTextMessage
+	 * @see jakarta.jms.Session#createTextMessage
 	 */
 	protected TextMessage createMessageForString(String text, Session session) throws JMSException {
 		return session.createTextMessage(text);
@@ -124,11 +125,11 @@ public class SimpleMessageConverter implements MessageConverter {
 
 	/**
 	 * Create a JMS BytesMessage for the given byte array.
-	 * @param bytes the byyte array to convert
+	 * @param bytes the byte array to convert
 	 * @param session current JMS session
 	 * @return the resulting message
 	 * @throws JMSException if thrown by JMS methods
-	 * @see javax.jms.Session#createBytesMessage
+	 * @see jakarta.jms.Session#createBytesMessage
 	 */
 	protected BytesMessage createMessageForByteArray(byte[] bytes, Session session) throws JMSException {
 		BytesMessage message = session.createBytesMessage();
@@ -142,16 +143,17 @@ public class SimpleMessageConverter implements MessageConverter {
 	 * @param session current JMS session
 	 * @return the resulting message
 	 * @throws JMSException if thrown by JMS methods
-	 * @see javax.jms.Session#createMapMessage
+	 * @see jakarta.jms.Session#createMapMessage
 	 */
 	protected MapMessage createMessageForMap(Map<?, ?> map, Session session) throws JMSException {
 		MapMessage message = session.createMapMessage();
 		for (Map.Entry<?, ?> entry : map.entrySet()) {
-			if (!(entry.getKey() instanceof String)) {
+			Object key = entry.getKey();
+			if (!(key instanceof String)) {
 				throw new MessageConversionException("Cannot convert non-String key of type [" +
-						ObjectUtils.nullSafeClassName(entry.getKey()) + "] to JMS MapMessage entry");
+						ObjectUtils.nullSafeClassName(key) + "] to JMS MapMessage entry");
 			}
-			message.setObject((String) entry.getKey(), entry.getValue());
+			message.setObject((String) key, entry.getValue());
 		}
 		return message;
 	}
@@ -162,7 +164,7 @@ public class SimpleMessageConverter implements MessageConverter {
 	 * @param session current JMS session
 	 * @return the resulting message
 	 * @throws JMSException if thrown by JMS methods
-	 * @see javax.jms.Session#createObjectMessage
+	 * @see jakarta.jms.Session#createObjectMessage
 	 */
 	protected ObjectMessage createMessageForSerializable(Serializable object, Session session) throws JMSException {
 		return session.createObjectMessage(object);

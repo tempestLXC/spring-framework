@@ -1,11 +1,11 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -36,7 +36,7 @@ import org.springframework.util.Assert;
  */
 public class ResourceOverridingShadowingClassLoader extends ShadowingClassLoader {
 
-	private static final Enumeration<URL> EMPTY_URL_ENUMERATION = new Enumeration<URL>() {
+	private static final Enumeration<URL> EMPTY_URL_ENUMERATION = new Enumeration<>() {
 		@Override
 		public boolean hasMoreElements() {
 			return false;
@@ -49,9 +49,9 @@ public class ResourceOverridingShadowingClassLoader extends ShadowingClassLoader
 
 
 	/**
-	 * Key is asked for value: value is actual value
+	 * Key is asked for value: value is actual value.
 	 */
-	private Map<String, String> overrides = new HashMap<>();
+	private final Map<String, String> overrides = new HashMap<>();
 
 
 	/**

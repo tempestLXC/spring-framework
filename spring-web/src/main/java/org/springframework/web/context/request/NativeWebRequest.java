@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -32,13 +32,13 @@ public interface NativeWebRequest extends WebRequest {
 
 	/**
 	 * Return the underlying native request object.
-	 * @see javax.servlet.http.HttpServletRequest
+	 * @see jakarta.servlet.http.HttpServletRequest
 	 */
 	Object getNativeRequest();
 
 	/**
 	 * Return the underlying native response object, if any.
-	 * @see javax.servlet.http.HttpServletResponse
+	 * @see jakarta.servlet.http.HttpServletResponse
 	 */
 	@Nullable
 	Object getNativeResponse();
@@ -48,7 +48,7 @@ public interface NativeWebRequest extends WebRequest {
 	 * @param requiredType the desired type of request object
 	 * @return the matching request object, or {@code null} if none
 	 * of that type is available
-	 * @see javax.servlet.http.HttpServletRequest
+	 * @see jakarta.servlet.http.HttpServletRequest
 	 */
 	@Nullable
 	<T> T getNativeRequest(@Nullable Class<T> requiredType);
@@ -58,7 +58,7 @@ public interface NativeWebRequest extends WebRequest {
 	 * @param requiredType the desired type of response object
 	 * @return the matching response object, or {@code null} if none
 	 * of that type is available
-	 * @see javax.servlet.http.HttpServletResponse
+	 * @see jakarta.servlet.http.HttpServletResponse
 	 */
 	@Nullable
 	<T> T getNativeResponse(@Nullable Class<T> requiredType);

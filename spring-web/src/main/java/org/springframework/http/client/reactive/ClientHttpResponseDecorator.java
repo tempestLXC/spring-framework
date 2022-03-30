@@ -1,11 +1,11 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -20,7 +20,7 @@ import reactor.core.publisher.Flux;
 
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseCookie;
 import org.springframework.util.Assert;
 import org.springframework.util.MultiValueMap;
@@ -33,7 +33,7 @@ import org.springframework.util.MultiValueMap;
  * @since 5.0
  */
 public class ClientHttpResponseDecorator implements ClientHttpResponse {
-	
+
 	private final ClientHttpResponse delegate;
 
 
@@ -48,11 +48,22 @@ public class ClientHttpResponseDecorator implements ClientHttpResponse {
 	}
 
 
-	// ServerHttpResponse delegation methods...
+	// ClientHttpResponse delegation methods...
 
 	@Override
-	public HttpStatus getStatusCode() {
+	public String getId() {
+		return this.delegate.getId();
+	}
+
+	@Override
+	public HttpStatusCode getStatusCode() {
 		return this.delegate.getStatusCode();
+	}
+
+	@Override
+	@Deprecated
+	public int getRawStatusCode() {
+		return this.delegate.getRawStatusCode();
 	}
 
 	@Override

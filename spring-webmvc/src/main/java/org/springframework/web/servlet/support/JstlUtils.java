@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -19,11 +19,12 @@ package org.springframework.web.servlet.support;
 import java.util.Locale;
 import java.util.ResourceBundle;
 import java.util.TimeZone;
-import javax.servlet.ServletContext;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpSession;
-import javax.servlet.jsp.jstl.core.Config;
-import javax.servlet.jsp.jstl.fmt.LocalizationContext;
+
+import jakarta.servlet.ServletContext;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
+import jakarta.servlet.jsp.jstl.core.Config;
+import jakarta.servlet.jsp.jstl.fmt.LocalizationContext;
 
 import org.springframework.context.MessageSource;
 import org.springframework.context.support.MessageSourceResourceBundle;
@@ -40,7 +41,7 @@ import org.springframework.lang.Nullable;
 public abstract class JstlUtils {
 
 	/**
-	 * Checks JSTL's "javax.servlet.jsp.jstl.fmt.localizationContext"
+	 * Checks JSTL's "jakarta.servlet.jsp.jstl.fmt.localizationContext"
 	 * context-param and creates a corresponding child message source,
 	 * with the provided Spring-defined MessageSource as parent.
 	 * @param servletContext the ServletContext we're running in

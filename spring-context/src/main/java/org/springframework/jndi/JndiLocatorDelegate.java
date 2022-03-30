@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -77,7 +77,7 @@ public class JndiLocatorDelegate extends JndiLocatorSupport {
 	}
 
 	/**
-	 * Check whether a default JNDI environment, as in a Java EE environment,
+	 * Check whether a default JNDI environment, as in a Jakarta EE environment,
 	 * is available on this JVM.
 	 * @return {@code true} if a default InitialContext can be used,
 	 * {@code false} if not

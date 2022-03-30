@@ -1,11 +1,11 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -18,9 +18,9 @@ package org.springframework.web.context.request;
 
 import java.lang.reflect.Method;
 import java.util.Map;
-import javax.faces.context.ExternalContext;
-import javax.faces.context.FacesContext;
 
+import jakarta.faces.context.ExternalContext;
+import jakarta.faces.context.FacesContext;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -30,7 +30,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.util.WebUtils;
 
 /**
- * {@link RequestAttributes} adapter for a JSF {@link javax.faces.context.FacesContext}.
+ * {@link RequestAttributes} adapter for a JSF {@link jakarta.faces.context.FacesContext}.
  * Used as default in a JSF environment, wrapping the current FacesContext.
  *
  * <p><b>NOTE:</b> In contrast to {@link ServletRequestAttributes}, this variant does
@@ -43,9 +43,9 @@ import org.springframework.web.util.WebUtils;
  *
  * @author Juergen Hoeller
  * @since 2.5.2
- * @see javax.faces.context.FacesContext#getExternalContext()
- * @see javax.faces.context.ExternalContext#getRequestMap()
- * @see javax.faces.context.ExternalContext#getSessionMap()
+ * @see jakarta.faces.context.FacesContext#getExternalContext()
+ * @see jakarta.faces.context.ExternalContext#getRequestMap()
+ * @see jakarta.faces.context.ExternalContext#getSessionMap()
  * @see RequestContextHolder#currentRequestAttributes()
  */
 public class FacesRequestAttributes implements RequestAttributes {
@@ -61,7 +61,7 @@ public class FacesRequestAttributes implements RequestAttributes {
 	/**
 	 * Create a new FacesRequestAttributes adapter for the given FacesContext.
 	 * @param facesContext the current FacesContext
-	 * @see javax.faces.context.FacesContext#getCurrentInstance()
+	 * @see jakarta.faces.context.FacesContext#getCurrentInstance()
 	 */
 	public FacesRequestAttributes(FacesContext facesContext) {
 		Assert.notNull(facesContext, "FacesContext must not be null");
@@ -78,14 +78,14 @@ public class FacesRequestAttributes implements RequestAttributes {
 
 	/**
 	 * Return the JSF ExternalContext that this adapter operates on.
-	 * @see javax.faces.context.FacesContext#getExternalContext()
+	 * @see jakarta.faces.context.FacesContext#getExternalContext()
 	 */
 	protected final ExternalContext getExternalContext() {
 		return getFacesContext().getExternalContext();
 	}
 
 	/**
-	 * Return the JSF attribute Map for the specified scope
+	 * Return the JSF attribute Map for the specified scope.
 	 * @param scope constant indicating request or session scope
 	 * @return the Map representation of the attributes in the specified scope
 	 * @see #SCOPE_REQUEST
@@ -191,7 +191,7 @@ public class FacesRequestAttributes implements RequestAttributes {
 	public String getSessionId() {
 		Object session = getExternalContext().getSession(true);
 		try {
-			// Both HttpSession and PortletSession have a getId() method.
+			// HttpSession has a getId() method.
 			Method getIdMethod = session.getClass().getMethod("getId");
 			return String.valueOf(ReflectionUtils.invokeMethod(getIdMethod, session));
 		}

@@ -1,11 +1,11 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -25,16 +25,14 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
+import org.eclipse.jetty.websocket.api.ExtensionConfig;
 import org.eclipse.jetty.websocket.api.RemoteEndpoint;
 import org.eclipse.jetty.websocket.api.Session;
-import org.eclipse.jetty.websocket.api.WebSocketException;
-import org.eclipse.jetty.websocket.api.extensions.ExtensionConfig;
 
 import org.springframework.http.HttpHeaders;
 import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
-import org.springframework.util.ObjectUtils;
 import org.springframework.web.socket.BinaryMessage;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.PingMessage;
@@ -55,8 +53,7 @@ import org.springframework.web.socket.adapter.AbstractWebSocketSession;
  */
 public class JettyWebSocketSession extends AbstractWebSocketSession<Session> {
 
-	@Nullable
-	private String id;
+	private final String id;
 
 	@Nullable
 	private URI uri;
@@ -76,7 +73,7 @@ public class JettyWebSocketSession extends AbstractWebSocketSession<Session> {
 
 	/**
 	 * Create a new {@link JettyWebSocketSession} instance.
-	 * @param attributes attributes from the HTTP handshake to associate with the WebSocket session
+	 * @param attributes the attributes from the HTTP handshake to associate with the WebSocket session
 	 */
 	public JettyWebSocketSession(Map<String, Object> attributes) {
 		this(attributes, null);
@@ -84,20 +81,20 @@ public class JettyWebSocketSession extends AbstractWebSocketSession<Session> {
 
 	/**
 	 * Create a new {@link JettyWebSocketSession} instance associated with the given user.
-	 * @param attributes attributes from the HTTP handshake to associate with the WebSocket
+	 * @param attributes the attributes from the HTTP handshake to associate with the WebSocket
 	 * session; the provided attributes are copied, the original map is not used.
 	 * @param user the user associated with the session; if {@code null} we'll fallback on the
 	 * user available via {@link org.eclipse.jetty.websocket.api.Session#getUpgradeRequest()}
 	 */
 	public JettyWebSocketSession(Map<String, Object> attributes, @Nullable Principal user) {
 		super(attributes);
+		this.id = idGenerator.generateId().toString();
 		this.user = user;
 	}
 
 
 	@Override
 	public String getId() {
-		Assert.state(this.id != null, "WebSocket session is not yet initialized");
 		return this.id;
 	}
 
@@ -134,37 +131,41 @@ public class JettyWebSocketSession extends AbstractWebSocketSession<Session> {
 	@Override
 	public InetSocketAddress getLocalAddress() {
 		checkNativeSessionInitialized();
-		return getNativeSession().getLocalAddress();
+		return (InetSocketAddress) getNativeSession().getLocalAddress();
 	}
 
 	@Override
 	public InetSocketAddress getRemoteAddress() {
 		checkNativeSessionInitialized();
-		return getNativeSession().getRemoteAddress();
+		return (InetSocketAddress) getNativeSession().getRemoteAddress();
 	}
 
+	/**
+	 * This method is a no-op for Jetty. As per {@link Session#getPolicy()}, the
+	 * returned {@code WebSocketPolicy} is read-only and changing it has no effect.
+	 */
 	@Override
 	public void setTextMessageSizeLimit(int messageSizeLimit) {
-		checkNativeSessionInitialized();
-		getNativeSession().getPolicy().setMaxTextMessageSize(messageSizeLimit);
 	}
 
 	@Override
 	public int getTextMessageSizeLimit() {
 		checkNativeSessionInitialized();
-		return getNativeSession().getPolicy().getMaxTextMessageSize();
+		return (int) getNativeSession().getMaxTextMessageSize();
 	}
 
+	/**
+	 * This method is a no-op for Jetty. As per {@link Session#getPolicy()}, the
+	 * returned {@code WebSocketPolicy} is read-only and changing it has no effect.
+	 */
 	@Override
 	public void setBinaryMessageSizeLimit(int messageSizeLimit) {
-		checkNativeSessionInitialized();
-		getNativeSession().getPolicy().setMaxBinaryMessageSize(messageSizeLimit);
 	}
 
 	@Override
 	public int getBinaryMessageSizeLimit() {
 		checkNativeSessionInitialized();
-		return getNativeSession().getPolicy().getMaxBinaryMessageSize();
+		return (int) getNativeSession().getMaxBinaryMessageSize();
 	}
 
 	@Override
@@ -177,30 +178,33 @@ public class JettyWebSocketSession extends AbstractWebSocketSession<Session> {
 	public void initializeNativeSession(Session session) {
 		super.initializeNativeSession(session);
 
-		this.id = ObjectUtils.getIdentityHexString(getNativeSession());
 		this.uri = session.getUpgradeRequest().getRequestURI();
 
 		HttpHeaders headers = new HttpHeaders();
-		headers.putAll(session.getUpgradeRequest().getHeaders());
+		Map<String, List<String>> nativeHeaders = session.getUpgradeRequest().getHeaders();
+		if (!CollectionUtils.isEmpty(nativeHeaders)) {
+			headers.putAll(nativeHeaders);
+		}
 		this.headers = HttpHeaders.readOnlyHttpHeaders(headers);
 
 		this.acceptedProtocol = session.getUpgradeResponse().getAcceptedSubProtocol();
-
-		List<ExtensionConfig> jettyExtensions = session.getUpgradeResponse().getExtensions();
-		if (!CollectionUtils.isEmpty(jettyExtensions)) {
-			List<WebSocketExtension> extensions = new ArrayList<>(jettyExtensions.size());
-			for (ExtensionConfig jettyExtension : jettyExtensions) {
-				extensions.add(new WebSocketExtension(jettyExtension.getName(), jettyExtension.getParameters()));
-			}
-			this.extensions = Collections.unmodifiableList(extensions);
-		}
-		else {
-			this.extensions = Collections.emptyList();
-		}
+		this.extensions = getExtensions(session);
 
 		if (this.user == null) {
 			this.user = session.getUpgradeRequest().getUserPrincipal();
 		}
+	}
+
+	private List<WebSocketExtension> getExtensions(Session session) {
+		List<ExtensionConfig> configs = session.getUpgradeResponse().getExtensions();
+		if (!CollectionUtils.isEmpty(configs)) {
+			List<WebSocketExtension> result = new ArrayList<>(configs.size());
+			for (ExtensionConfig config : configs) {
+				result.add(new WebSocketExtension(config.getName(), config.getParameters()));
+			}
+			return Collections.unmodifiableList(result);
+		}
+		return Collections.emptyList();
 	}
 
 
@@ -224,13 +228,8 @@ public class JettyWebSocketSession extends AbstractWebSocketSession<Session> {
 		getRemoteEndpoint().sendPong(message.getPayload());
 	}
 
-	private RemoteEndpoint getRemoteEndpoint() throws IOException {
-		try {
-			return getNativeSession().getRemote();
-		}
-		catch (WebSocketException ex) {
-			throw new IOException("Unable to obtain RemoteEndpoint in session " + getId(), ex);
-		}
+	private RemoteEndpoint getRemoteEndpoint() {
+		return getNativeSession().getRemote();
 	}
 
 	@Override

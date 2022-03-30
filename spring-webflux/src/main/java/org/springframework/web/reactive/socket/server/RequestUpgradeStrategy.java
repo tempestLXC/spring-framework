@@ -1,11 +1,11 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,11 +16,14 @@
 
 package org.springframework.web.reactive.socket.server;
 
+import java.util.function.Supplier;
+
 import reactor.core.publisher.Mono;
 
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.lang.Nullable;
+import org.springframework.web.reactive.socket.HandshakeInfo;
 import org.springframework.web.reactive.socket.WebSocketHandler;
 import org.springframework.web.server.ServerWebExchange;
 
@@ -43,10 +46,12 @@ public interface RequestUpgradeStrategy {
 	 * @param exchange the current exchange
 	 * @param webSocketHandler handler for the WebSocket session
 	 * @param subProtocol the selected sub-protocol got the handler
+	 * @param handshakeInfoFactory factory to create HandshakeInfo for the WebSocket session
 	 * @return completion {@code Mono<Void>} to indicate the outcome of the
 	 * WebSocket session handling.
+	 * @since 5.1
 	 */
 	Mono<Void> upgrade(ServerWebExchange exchange, WebSocketHandler webSocketHandler,
-			@Nullable String subProtocol);
+			@Nullable String subProtocol, Supplier<HandshakeInfo> handshakeInfoFactory);
 
 }

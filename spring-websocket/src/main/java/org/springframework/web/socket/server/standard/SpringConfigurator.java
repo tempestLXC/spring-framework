@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -19,9 +19,9 @@ package org.springframework.web.socket.server.standard;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import javax.websocket.server.ServerEndpoint;
-import javax.websocket.server.ServerEndpointConfig.Configurator;
 
+import jakarta.websocket.server.ServerEndpoint;
+import jakarta.websocket.server.ServerEndpointConfig.Configurator;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -34,7 +34,7 @@ import org.springframework.web.context.ContextLoader;
 import org.springframework.web.context.WebApplicationContext;
 
 /**
- * A {@link javax.websocket.server.ServerEndpointConfig.Configurator} for initializing
+ * A {@link jakarta.websocket.server.ServerEndpointConfig.Configurator} for initializing
  * {@link ServerEndpoint}-annotated classes through Spring.
  *
  * <p>

@@ -1,11 +1,11 @@
 /*
- * Copyright 2002-2013 the original author or authors.
+ * Copyright 2002-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,10 +17,12 @@
 package org.springframework.util.xml;
 
 import java.util.Iterator;
+
 import javax.xml.namespace.NamespaceContext;
 import javax.xml.namespace.QName;
 import javax.xml.stream.Location;
 import javax.xml.stream.XMLEventReader;
+import javax.xml.stream.XMLStreamConstants;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.events.Attribute;
 import javax.xml.stream.events.Comment;
@@ -95,7 +97,7 @@ class XMLEventStreamReader extends AbstractXMLStreamReader {
 	@Override
 	public boolean isStandalone() {
 		if (this.event.isStartDocument()) {
-			return ((StartDocument) event).isStandalone();
+			return ((StartDocument) this.event).isStandalone();
 		}
 		else {
 			throw new IllegalStateException();
@@ -152,9 +154,9 @@ class XMLEventStreamReader extends AbstractXMLStreamReader {
 	@Override
 	public String getText() {
 		if (this.event.isCharacters()) {
-			return event.asCharacters().getData();
+			return this.event.asCharacters().getData();
 		}
-		else if (this.event.getEventType() == XMLEvent.COMMENT) {
+		else if (this.event.getEventType() == XMLStreamConstants.COMMENT) {
 			return ((Comment) this.event).getText();
 		}
 		else {

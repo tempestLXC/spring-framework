@@ -1,11 +1,11 @@
 /*
- * Copyright 2002-2016 the original author or authors.
+ * Copyright 2002-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -33,10 +33,13 @@ import java.lang.annotation.Target;
  * <li>An exception argument: declared as a general Exception or as a more
  * specific exception. This also serves as a mapping hint if the annotation
  * itself does not narrow the exception types through its {@link #value()}.
+ * You may refer to a top-level exception being propagated or to a nested
+ * cause within a wrapper exception. As of 5.3, any cause level is being
+ * exposed, whereas previously only an immediate cause was considered.
  * <li>Request and/or response objects (typically from the Servlet API).
  * You may choose any specific request/response type, e.g.
- * {@link javax.servlet.ServletRequest} / {@link javax.servlet.http.HttpServletRequest}.
- * <li>Session object: typically {@link javax.servlet.http.HttpSession}.
+ * {@link jakarta.servlet.ServletRequest} / {@link jakarta.servlet.http.HttpServletRequest}.
+ * <li>Session object: typically {@link jakarta.servlet.http.HttpSession}.
  * An argument of this type will enforce the presence of a corresponding session.
  * As a consequence, such an argument will never be {@code null}.
  * <i>Note that session access may not be thread-safe, in particular in a
@@ -85,15 +88,14 @@ import java.lang.annotation.Target;
  * {@linkplain org.springframework.http.converter.HttpMessageConverter message converters}.
  * <li>{@code void} if the method handles the response itself (by
  * writing the response content directly, declaring an argument of type
- * {@link javax.servlet.ServletResponse} / {@link javax.servlet.http.HttpServletResponse}
+ * {@link jakarta.servlet.ServletResponse} / {@link jakarta.servlet.http.HttpServletResponse}
  * for that purpose) or if the view name is supposed to be implicitly determined
  * through a {@link org.springframework.web.servlet.RequestToViewNameTranslator}
  * (not declaring a response argument in the handler method signature).
  * </ul>
  *
- * <p>In Servlet environments, you can combine the {@code ExceptionHandler} annotation
- * with {@link ResponseStatus @ResponseStatus}, to define the response status
- * for the HTTP response.
+ * <p>You may combine the {@code ExceptionHandler} annotation with
+ * {@link ResponseStatus @ResponseStatus} for a specific HTTP error status.
  *
  * @author Arjen Poutsma
  * @author Juergen Hoeller

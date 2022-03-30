@@ -1,11 +1,11 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,10 +17,11 @@
 package org.springframework.jms.listener.adapter;
 
 import java.lang.reflect.InvocationTargetException;
-import javax.jms.JMSException;
-import javax.jms.Message;
-import javax.jms.MessageListener;
-import javax.jms.Session;
+
+import jakarta.jms.JMSException;
+import jakarta.jms.Message;
+import jakarta.jms.MessageListener;
+import jakarta.jms.Session;
 
 import org.springframework.jms.listener.SessionAwareMessageListener;
 import org.springframework.jms.listener.SubscriptionNameProvider;
@@ -50,7 +51,7 @@ import org.springframework.util.ObjectUtils;
  * message content type such as {@code String} or byte array), it will get
  * wrapped in a JMS {@code Message} and sent to the response destination
  * (either the JMS "reply-to" destination or a
- * {@link #setDefaultResponseDestination(javax.jms.Destination) specified default
+ * {@link #setDefaultResponseDestination(jakarta.jms.Destination) specified default
  * destination}).
  *
  * <p><b>Note:</b> The sending of response messages is only available when
@@ -85,10 +86,10 @@ import org.springframework.util.ObjectUtils;
  *
  * This next example illustrates a {@code Message} delegate
  * that just consumes the {@code String} contents of
- * {@link javax.jms.TextMessage TextMessages}. Notice also how the
+ * {@link jakarta.jms.TextMessage TextMessages}. Notice also how the
  * name of the {@code Message} handling method is different from the
  * {@link #ORIGINAL_DEFAULT_LISTENER_METHOD original} (this will have to
- * be configured in the attandant bean definition). Again, no {@code Message}
+ * be configured in the attendant bean definition). Again, no {@code Message}
  * will be sent back as the method returns {@code void}.
  *
  * <pre class="code">public interface TextMessageContentDelegate {
@@ -97,9 +98,9 @@ import org.springframework.util.ObjectUtils;
  *
  * This final example illustrates a {@code Message} delegate
  * that just consumes the {@code String} contents of
- * {@link javax.jms.TextMessage TextMessages}. Notice how the return type
+ * {@link jakarta.jms.TextMessage TextMessages}. Notice how the return type
  * of this method is {@code String}: This will result in the configured
- * {@link MessageListenerAdapter} sending a {@link javax.jms.TextMessage} in response.
+ * {@link MessageListenerAdapter} sending a {@link jakarta.jms.TextMessage} in response.
  *
  * <pre class="code">public interface ResponsiveTextMessageContentDelegate {
  *    String handleMessage(String text);

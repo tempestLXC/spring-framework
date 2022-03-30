@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,8 +16,8 @@
 
 package org.springframework.web.context;
 
-import javax.servlet.ServletConfig;
-import javax.servlet.ServletContext;
+import jakarta.servlet.ServletConfig;
+import jakarta.servlet.ServletContext;
 
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.lang.Nullable;
@@ -47,7 +47,7 @@ public interface ConfigurableWebApplicationContext extends WebApplicationContext
 
 	/**
 	 * Name of the ServletConfig environment bean in the factory.
-	 * @see javax.servlet.ServletConfig
+	 * @see jakarta.servlet.ServletConfig
 	 */
 	String SERVLET_CONFIG_BEAN_NAME = "servletConfig";
 

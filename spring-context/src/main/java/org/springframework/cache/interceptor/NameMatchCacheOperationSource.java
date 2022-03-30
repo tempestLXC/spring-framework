@@ -1,11 +1,11 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -46,8 +46,8 @@ public class NameMatchCacheOperationSource implements CacheOperationSource, Seri
 	protected static final Log logger = LogFactory.getLog(NameMatchCacheOperationSource.class);
 
 
-	/** Keys are method names; values are TransactionAttributes */
-	private Map<String, Collection<CacheOperation>> nameMap = new LinkedHashMap<>();
+	/** Keys are method names; values are TransactionAttributes. */
+	private final Map<String, Collection<CacheOperation>> nameMap = new LinkedHashMap<>();
 
 
 	/**
@@ -110,14 +110,13 @@ public class NameMatchCacheOperationSource implements CacheOperationSource, Seri
 	}
 
 	@Override
-	public boolean equals(Object other) {
+	public boolean equals(@Nullable Object other) {
 		if (this == other) {
 			return true;
 		}
-		if (!(other instanceof NameMatchCacheOperationSource)) {
+		if (!(other instanceof NameMatchCacheOperationSource otherTas)) {
 			return false;
 		}
-		NameMatchCacheOperationSource otherTas = (NameMatchCacheOperationSource) other;
 		return ObjectUtils.nullSafeEquals(this.nameMap, otherTas.nameMap);
 	}
 

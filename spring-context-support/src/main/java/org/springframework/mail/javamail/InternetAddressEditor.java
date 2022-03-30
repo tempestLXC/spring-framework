@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,8 +17,9 @@
 package org.springframework.mail.javamail;
 
 import java.beans.PropertyEditorSupport;
-import javax.mail.internet.AddressException;
-import javax.mail.internet.InternetAddress;
+
+import jakarta.mail.internet.AddressException;
+import jakarta.mail.internet.InternetAddress;
 
 import org.springframework.util.StringUtils;
 
@@ -31,7 +32,7 @@ import org.springframework.util.StringUtils;
  *
  * @author Juergen Hoeller
  * @since 1.2.3
- * @see javax.mail.internet.InternetAddress
+ * @see jakarta.mail.internet.InternetAddress
  */
 public class InternetAddressEditor extends PropertyEditorSupport {
 

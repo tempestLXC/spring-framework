@@ -1,11 +1,11 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -40,7 +40,7 @@ class PassThroughBlob implements Blob {
 	@Nullable
 	private InputStream binaryStream;
 
-	private long contentLength;
+	private final long contentLength;
 
 
 	public PassThroughBlob(byte[] content) {
@@ -96,7 +96,7 @@ class PassThroughBlob implements Blob {
 	}
 
 	@Override
-	public long position(byte pattern[], long start) throws SQLException {
+	public long position(byte[] pattern, long start) throws SQLException {
 		throw new UnsupportedOperationException();
 	}
 

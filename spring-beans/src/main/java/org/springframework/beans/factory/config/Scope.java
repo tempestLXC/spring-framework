@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -138,7 +138,7 @@ public interface Scope {
 	 * <p>The exact meaning of the conversation ID depends on the underlying
 	 * storage mechanism. In the case of session-scoped objects, the
 	 * conversation ID would typically be equal to (or derived from) the
-	 * {@link javax.servlet.http.HttpSession#getId() session ID}; in the
+	 * {@link jakarta.servlet.http.HttpSession#getId() session ID}; in the
 	 * case of a custom conversation that sits within the overall session,
 	 * the specific ID for the current conversation would be appropriate.
 	 * <p><b>Note: This is an optional operation.</b> It is perfectly valid to

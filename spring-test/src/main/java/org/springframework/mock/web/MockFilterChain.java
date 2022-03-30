@@ -1,11 +1,11 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -21,20 +21,21 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
-import javax.servlet.Filter;
-import javax.servlet.FilterChain;
-import javax.servlet.FilterConfig;
-import javax.servlet.Servlet;
-import javax.servlet.ServletException;
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletResponse;
+
+import jakarta.servlet.Filter;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.FilterConfig;
+import jakarta.servlet.Servlet;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
 
 import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.ObjectUtils;
 
 /**
- * Mock implementation of the {@link javax.servlet.FilterChain} interface.
+ * Mock implementation of the {@link jakarta.servlet.FilterChain} interface.
  *
  * <p>A {@link MockFilterChain} can be configured with one or more filters and a
  * Servlet to invoke. The first time the chain is called, it invokes all filters
@@ -115,7 +116,7 @@ public class MockFilterChain implements FilterChain {
 	}
 
 	/**
-	 * Invoke registered {@link Filter}s and/or {@link Servlet} also saving the
+	 * Invoke registered {@link Filter Filters} and/or {@link Servlet} also saving the
 	 * request and response.
 	 */
 	@Override
@@ -150,7 +151,7 @@ public class MockFilterChain implements FilterChain {
 	/**
 	 * A filter that simply delegates to a Servlet.
 	 */
-	private static class ServletFilterProxy implements Filter {
+	private static final class ServletFilterProxy implements Filter {
 
 		private final Servlet delegateServlet;
 

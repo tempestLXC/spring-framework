@@ -1,11 +1,11 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,6 +16,7 @@
 
 package org.springframework.web.filter.reactive;
 
+import java.util.List;
 import java.util.Locale;
 
 import reactor.core.publisher.Mono;
@@ -45,7 +46,10 @@ import org.springframework.web.server.WebFilterChain;
  */
 public class HiddenHttpMethodFilter implements WebFilter {
 
-	/** Default name of the form parameter with the HTTP method to use */
+	private static final List<HttpMethod> ALLOWED_METHODS =
+			List.of(HttpMethod.PUT, HttpMethod.DELETE, HttpMethod.PATCH);
+
+	/** Default name of the form parameter with the HTTP method to use. */
 	public static final String DEFAULT_METHOD_PARAMETER_NAME = "_method";
 
 
@@ -63,8 +67,7 @@ public class HiddenHttpMethodFilter implements WebFilter {
 
 
 	/**
-	 * Transform an HTTP POST into another method based on {@code methodParamName}
-	 *
+	 * Transform an HTTP POST into another method based on {@code methodParamName}.
 	 * @param exchange the current server exchange
 	 * @param chain provides a way to delegate to the next filter
 	 * @return {@code Mono<Void>} to indicate when request processing is complete
@@ -85,9 +88,13 @@ public class HiddenHttpMethodFilter implements WebFilter {
 	}
 
 	private ServerWebExchange mapExchange(ServerWebExchange exchange, String methodParamValue) {
-		HttpMethod httpMethod = HttpMethod.resolve(methodParamValue.toUpperCase(Locale.ENGLISH));
-		Assert.notNull(httpMethod, () -> "HttpMethod '" + methodParamValue + "' not supported");
-		return exchange.mutate().request(builder -> builder.method(httpMethod)).build();
+		HttpMethod httpMethod = HttpMethod.valueOf(methodParamValue.toUpperCase(Locale.ENGLISH));
+		if (ALLOWED_METHODS.contains(httpMethod)) {
+			return exchange.mutate().request(builder -> builder.method(httpMethod)).build();
+		}
+		else {
+			return exchange;
+		}
 	}
 
 }

@@ -1,11 +1,11 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -18,6 +18,7 @@ package org.springframework.scripting.support;
 
 import java.io.IOException;
 import java.io.Reader;
+import java.nio.charset.StandardCharsets;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -47,7 +48,7 @@ import org.springframework.util.StringUtils;
  */
 public class ResourceScriptSource implements ScriptSource {
 
-	/** Logger available to subclasses */
+	/** Logger available to subclasses. */
 	protected final Log logger = LogFactory.getLog(getClass());
 
 	private EncodedResource resource;
@@ -72,7 +73,7 @@ public class ResourceScriptSource implements ScriptSource {
 	 */
 	public ResourceScriptSource(Resource resource) {
 		Assert.notNull(resource, "Resource must not be null");
-		this.resource = new EncodedResource(resource, "UTF-8");
+		this.resource = new EncodedResource(resource, StandardCharsets.UTF_8);
 	}
 
 

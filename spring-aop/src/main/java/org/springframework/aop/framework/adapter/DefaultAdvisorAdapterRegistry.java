@@ -1,11 +1,11 @@
 /*
- * Copyright 2002-2016 the original author or authors.
+ * Copyright 2002-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -58,10 +58,9 @@ public class DefaultAdvisorAdapterRegistry implements AdvisorAdapterRegistry, Se
 		if (adviceObject instanceof Advisor) {
 			return (Advisor) adviceObject;
 		}
-		if (!(adviceObject instanceof Advice)) {
+		if (!(adviceObject instanceof Advice advice)) {
 			throw new UnknownAdviceTypeException(adviceObject);
 		}
-		Advice advice = (Advice) adviceObject;
 		if (advice instanceof MethodInterceptor) {
 			// So well-known it doesn't even need an adapter.
 			return new DefaultPointcutAdvisor(advice);
@@ -90,7 +89,7 @@ public class DefaultAdvisorAdapterRegistry implements AdvisorAdapterRegistry, Se
 		if (interceptors.isEmpty()) {
 			throw new UnknownAdviceTypeException(advisor.getAdvice());
 		}
-		return interceptors.toArray(new MethodInterceptor[interceptors.size()]);
+		return interceptors.toArray(new MethodInterceptor[0]);
 	}
 
 	@Override

@@ -1,11 +1,11 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,25 +16,30 @@
 
 package org.springframework.jms.connection;
 
-import javax.jms.Connection;
-import javax.jms.ConnectionFactory;
-import javax.jms.JMSContext;
-import javax.jms.JMSException;
-import javax.jms.QueueConnection;
-import javax.jms.QueueConnectionFactory;
-import javax.jms.TopicConnection;
-import javax.jms.TopicConnectionFactory;
+import jakarta.jms.Connection;
+import jakarta.jms.ConnectionFactory;
+import jakarta.jms.JMSContext;
+import jakarta.jms.JMSException;
+import jakarta.jms.QueueConnection;
+import jakarta.jms.QueueConnectionFactory;
+import jakarta.jms.TopicConnection;
+import jakarta.jms.TopicConnectionFactory;
 
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 
 /**
- * {@link javax.jms.ConnectionFactory} implementation that delegates all calls
- * to a given target {@link javax.jms.ConnectionFactory}, adapting specific
+ * {@link jakarta.jms.ConnectionFactory} implementation that delegates all calls
+ * to a given target {@link jakarta.jms.ConnectionFactory}, adapting specific
  * {@code create(Queue/Topic)Connection} calls to the target ConnectionFactory
  * if necessary (e.g. when running JMS 1.0.2 API based code against a generic
  * JMS 1.1 ConnectionFactory, such as ActiveMQ's PooledConnectionFactory).
+ *
+ * <p>As of Spring Framework 5, this class supports JMS 2.0 {@code JMSContext}
+ * calls and therefore requires the JMS 2.0 API to be present at runtime.
+ * It may nevertheless run against a JMS 1.1 driver (bound to the JMS 2.0 API)
+ * as long as no actual JMS 2.0 calls are triggered by the application's setup.
  *
  * <p>This class allows for being subclassed, with subclasses overriding only
  * those methods (such as {@link #createConnection()}) that should not simply
@@ -121,7 +126,7 @@ public class DelegatingConnectionFactory
 		else {
 			Connection con = target.createConnection();
 			if (!(con instanceof QueueConnection)) {
-				throw new javax.jms.IllegalStateException("'targetConnectionFactory' is not a QueueConnectionFactory");
+				throw new jakarta.jms.IllegalStateException("'targetConnectionFactory' is not a QueueConnectionFactory");
 			}
 			return (QueueConnection) con;
 		}
@@ -136,7 +141,7 @@ public class DelegatingConnectionFactory
 		else {
 			Connection con = target.createConnection(username, password);
 			if (!(con instanceof QueueConnection)) {
-				throw new javax.jms.IllegalStateException("'targetConnectionFactory' is not a QueueConnectionFactory");
+				throw new jakarta.jms.IllegalStateException("'targetConnectionFactory' is not a QueueConnectionFactory");
 			}
 			return (QueueConnection) con;
 		}
@@ -151,7 +156,7 @@ public class DelegatingConnectionFactory
 		else {
 			Connection con = target.createConnection();
 			if (!(con instanceof TopicConnection)) {
-				throw new javax.jms.IllegalStateException("'targetConnectionFactory' is not a TopicConnectionFactory");
+				throw new jakarta.jms.IllegalStateException("'targetConnectionFactory' is not a TopicConnectionFactory");
 			}
 			return (TopicConnection) con;
 		}
@@ -166,7 +171,7 @@ public class DelegatingConnectionFactory
 		else {
 			Connection con = target.createConnection(username, password);
 			if (!(con instanceof TopicConnection)) {
-				throw new javax.jms.IllegalStateException("'targetConnectionFactory' is not a TopicConnectionFactory");
+				throw new jakarta.jms.IllegalStateException("'targetConnectionFactory' is not a TopicConnectionFactory");
 			}
 			return (TopicConnection) con;
 		}

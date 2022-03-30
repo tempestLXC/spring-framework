@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,10 +17,11 @@
 package org.springframework.web.servlet.view;
 
 import java.util.Map;
-import javax.servlet.RequestDispatcher;
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+
+import jakarta.servlet.RequestDispatcher;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
@@ -30,7 +31,7 @@ import org.springframework.web.util.WebUtils;
 /**
  * Wrapper for a JSP or other resource within the same web application.
  * Exposes model objects as request attributes and forwards the request to
- * the specified resource URL using a {@link javax.servlet.RequestDispatcher}.
+ * the specified resource URL using a {@link jakarta.servlet.RequestDispatcher}.
  *
  * <p>A URL for this view is supposed to specify a resource within the web
  * application, suitable for RequestDispatcher's {@code forward} or
@@ -50,15 +51,15 @@ import org.springframework.web.util.WebUtils;
  * &lt;/bean&gt;</pre>
  *
  * Every view name returned from a handler will be translated to a JSP
- * resource (for example: "myView" -> "/WEB-INF/jsp/myView.jsp"), using
+ * resource (for example: "myView" &rarr; "/WEB-INF/jsp/myView.jsp"), using
  * this view class by default.
  *
  * @author Rod Johnson
  * @author Juergen Hoeller
  * @author Rob Harrop
- * @see javax.servlet.RequestDispatcher#forward
- * @see javax.servlet.RequestDispatcher#include
- * @see javax.servlet.ServletResponse#flushBuffer
+ * @see jakarta.servlet.RequestDispatcher#forward
+ * @see jakarta.servlet.RequestDispatcher#include
+ * @see jakarta.servlet.ServletResponse#flushBuffer
  * @see InternalResourceViewResolver
  * @see JstlView
  */
@@ -101,9 +102,9 @@ public class InternalResourceView extends AbstractUrlBasedView {
 	 * Specify whether to always include the view rather than forward to it.
 	 * <p>Default is "false". Switch this flag on to enforce the use of a
 	 * Servlet include, even if a forward would be possible.
-	 * @see javax.servlet.RequestDispatcher#forward
-	 * @see javax.servlet.RequestDispatcher#include
-	 * @see #useInclude(javax.servlet.http.HttpServletRequest, javax.servlet.http.HttpServletResponse)
+	 * @see jakarta.servlet.RequestDispatcher#forward
+	 * @see jakarta.servlet.RequestDispatcher#include
+	 * @see #useInclude(jakarta.servlet.http.HttpServletRequest, jakarta.servlet.http.HttpServletResponse)
 	 */
 	public void setAlwaysInclude(boolean alwaysInclude) {
 		this.alwaysInclude = alwaysInclude;
@@ -157,7 +158,7 @@ public class InternalResourceView extends AbstractUrlBasedView {
 		if (useInclude(request, response)) {
 			response.setContentType(getContentType());
 			if (logger.isDebugEnabled()) {
-				logger.debug("Including resource [" + getUrl() + "] in InternalResourceView '" + getBeanName() + "'");
+				logger.debug("Including [" + getUrl() + "]");
 			}
 			rd.include(request, response);
 		}
@@ -165,7 +166,7 @@ public class InternalResourceView extends AbstractUrlBasedView {
 		else {
 			// Note: The forwarded resource is supposed to determine the content type itself.
 			if (logger.isDebugEnabled()) {
-				logger.debug("Forwarding to resource [" + getUrl() + "] in InternalResourceView '" + getBeanName() + "'");
+				logger.debug("Forwarding to [" + getUrl() + "]");
 			}
 			rd.forward(request, response);
 		}
@@ -237,9 +238,9 @@ public class InternalResourceView extends AbstractUrlBasedView {
 	 * @param request current HTTP request
 	 * @param response current HTTP response
 	 * @return {@code true} for include, {@code false} for forward
-	 * @see javax.servlet.RequestDispatcher#forward
-	 * @see javax.servlet.RequestDispatcher#include
-	 * @see javax.servlet.ServletResponse#isCommitted
+	 * @see jakarta.servlet.RequestDispatcher#forward
+	 * @see jakarta.servlet.RequestDispatcher#include
+	 * @see jakarta.servlet.ServletResponse#isCommitted
 	 * @see org.springframework.web.util.WebUtils#isIncludeRequest
 	 */
 	protected boolean useInclude(HttpServletRequest request, HttpServletResponse response) {
