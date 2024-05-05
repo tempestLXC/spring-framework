@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -527,8 +527,8 @@ public class SchedulerFactoryBean extends SchedulerAccessor implements FactoryBe
 		if (schedulerFactory == null) {
 			// Create local SchedulerFactory instance (typically a StdSchedulerFactory)
 			schedulerFactory = BeanUtils.instantiateClass(this.schedulerFactoryClass);
-			if (schedulerFactory instanceof StdSchedulerFactory) {
-				initSchedulerFactory((StdSchedulerFactory) schedulerFactory);
+			if (schedulerFactory instanceof StdSchedulerFactory stdSchedulerFactory) {
+				initSchedulerFactory(stdSchedulerFactory);
 			}
 			else if (this.configLocation != null || this.quartzProperties != null ||
 					this.taskExecutor != null || this.dataSource != null) {
@@ -622,11 +622,11 @@ public class SchedulerFactoryBean extends SchedulerAccessor implements FactoryBe
 				this.jobFactory = new AdaptableJobFactory();
 			}
 			if (this.jobFactory != null) {
-				if (this.applicationContext != null && this.jobFactory instanceof ApplicationContextAware) {
-					((ApplicationContextAware) this.jobFactory).setApplicationContext(this.applicationContext);
+				if (this.applicationContext != null && this.jobFactory instanceof ApplicationContextAware applicationContextAware) {
+					applicationContextAware.setApplicationContext(this.applicationContext);
 				}
-				if (this.jobFactory instanceof SchedulerContextAware) {
-					((SchedulerContextAware) this.jobFactory).setSchedulerContext(scheduler.getContext());
+				if (this.jobFactory instanceof SchedulerContextAware schedulerContextAware) {
+					schedulerContextAware.setSchedulerContext(scheduler.getContext());
 				}
 				scheduler.setJobFactory(this.jobFactory);
 			}
@@ -661,6 +661,7 @@ public class SchedulerFactoryBean extends SchedulerAccessor implements FactoryBe
 	 * @see #afterPropertiesSet
 	 * @see org.quartz.SchedulerFactory#getScheduler
 	 */
+	@SuppressWarnings("NullAway")
 	protected Scheduler createScheduler(SchedulerFactory schedulerFactory, @Nullable String schedulerName)
 			throws SchedulerException {
 
@@ -736,27 +737,24 @@ public class SchedulerFactoryBean extends SchedulerAccessor implements FactoryBe
 			}
 			// Not using the Quartz startDelayed method since we explicitly want a daemon
 			// thread here, not keeping the JVM alive in case of all other threads ending.
-			Thread schedulerThread = new Thread() {
-				@Override
-				public void run() {
-					try {
-						TimeUnit.SECONDS.sleep(startupDelay);
-					}
-					catch (InterruptedException ex) {
-						Thread.currentThread().interrupt();
-						// simply proceed
-					}
-					if (logger.isInfoEnabled()) {
-						logger.info("Starting Quartz Scheduler now, after delay of " + startupDelay + " seconds");
-					}
-					try {
-						scheduler.start();
-					}
-					catch (SchedulerException ex) {
-						throw new SchedulingException("Could not start Quartz Scheduler after delay", ex);
-					}
+			Thread schedulerThread = new Thread(() -> {
+				try {
+					TimeUnit.SECONDS.sleep(startupDelay);
 				}
-			};
+				catch (InterruptedException ex) {
+					Thread.currentThread().interrupt();
+					// simply proceed
+				}
+				if (logger.isInfoEnabled()) {
+					logger.info("Starting Quartz Scheduler now, after delay of " + startupDelay + " seconds");
+				}
+				try {
+					scheduler.start();
+				}
+				catch (SchedulerException ex) {
+					throw new SchedulingException("Could not start Quartz Scheduler after delay", ex);
+				}
+			});
 			schedulerThread.setName("Quartz Scheduler [" + scheduler.getSchedulerName() + "]");
 			schedulerThread.setDaemon(true);
 			schedulerThread.start();

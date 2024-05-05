@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -93,7 +93,7 @@ import org.springframework.web.util.TagUtils;
  * <td>false</td>
  * <td>true</td>
  * <td>Set JavaScript escaping for this tag, as boolean value.
- * Default is false.</td>
+ * Default is {@code false}.</td>
  * </tr>
  * <tr>
  * <td>message</td>
@@ -306,6 +306,7 @@ public class MessageTag extends HtmlEscapingAwareTag implements ArgumentAware {
 	 * Resolve the specified message into a concrete message String.
 	 * The returned message String should be unescaped.
 	 */
+	@SuppressWarnings("NullAway")
 	protected String resolveMessage() throws JspException, NoSuchMessageException {
 		MessageSource messageSource = getMessageSource();
 
@@ -357,14 +358,14 @@ public class MessageTag extends HtmlEscapingAwareTag implements ArgumentAware {
 	 */
 	@Nullable
 	protected Object[] resolveArguments(@Nullable Object arguments) throws JspException {
-		if (arguments instanceof String) {
-			return StringUtils.delimitedListToStringArray((String) arguments, this.argumentSeparator);
+		if (arguments instanceof String string) {
+			return StringUtils.delimitedListToStringArray(string, this.argumentSeparator);
 		}
-		else if (arguments instanceof Object[]) {
-			return (Object[]) arguments;
+		else if (arguments instanceof Object[] array) {
+			return array;
 		}
-		else if (arguments instanceof Collection) {
-			return ((Collection<?>) arguments).toArray();
+		else if (arguments instanceof Collection<?> collection) {
+			return collection.toArray();
 		}
 		else if (arguments != null) {
 			// Assume a single argument object.
@@ -395,6 +396,7 @@ public class MessageTag extends HtmlEscapingAwareTag implements ArgumentAware {
 	/**
 	 * Return default exception message.
 	 */
+	@Nullable
 	protected String getNoSuchMessageExceptionDescription(NoSuchMessageException ex) {
 		return ex.getMessage();
 	}

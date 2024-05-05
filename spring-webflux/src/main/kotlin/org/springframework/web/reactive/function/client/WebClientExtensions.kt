@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@ package org.springframework.web.reactive.function.client
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.reactive.asFlow
-import kotlinx.coroutines.reactive.awaitSingle
+import kotlinx.coroutines.reactor.awaitSingle
 import kotlinx.coroutines.reactor.awaitSingleOrNull
 import kotlinx.coroutines.reactor.asFlux
 import kotlinx.coroutines.reactor.mono
@@ -69,6 +69,18 @@ inline fun <reified T : Any> RequestBodySpec.body(producer: Any): RequestHeaders
 		body(producer, object : ParameterizedTypeReference<T>() {})
 
 /**
+ * Extension for [WebClient.RequestBodySpec.bodyValue] providing a `bodyValueWithType<T>(Any)` variant
+ * leveraging Kotlin reified type parameters. This extension is not subject to type
+ * erasure and retains actual generic type arguments.
+ * @param body the value to write to the request body
+ * @param T the type of the body
+ * @author Sebastien Deleuze
+ * @since 6.2
+ */
+inline fun <reified T : Any> RequestBodySpec.bodyValueWithType(body: T): RequestHeadersSpec<*> =
+	bodyValue(body, object : ParameterizedTypeReference<T>() {})
+
+/**
  * Coroutines variant of [WebClient.RequestHeadersSpec.exchange].
  *
  * @author Sebastien Deleuze
@@ -95,7 +107,6 @@ suspend fun <T: Any> RequestHeadersSpec<out RequestHeadersSpec<*>>.awaitExchange
  *
  * @since 5.3.8
  */
-@Suppress("DEPRECATION")
 suspend fun <T: Any> RequestHeadersSpec<out RequestHeadersSpec<*>>.awaitExchangeOrNull(responseHandler: suspend (ClientResponse) -> T?): T? =
 		exchangeToMono { mono(Dispatchers.Unconfined) { responseHandler.invoke(it) } }.awaitSingleOrNull()
 
@@ -143,6 +154,7 @@ inline fun <reified T : Any> WebClient.ResponseSpec.bodyToFlow(): Flow<T> =
 /**
  * Coroutines variant of [WebClient.ResponseSpec.bodyToMono].
  *
+ * @throws NoSuchElementException if the underlying [Mono] does not emit any value
  * @author Sebastien Deleuze
  * @since 5.2
  */
@@ -158,7 +170,6 @@ suspend inline fun <reified T : Any> WebClient.ResponseSpec.awaitBody() : T =
  * @author Valentin Shakhov
  * @since 5.3.6
  */
-@Suppress("DEPRECATION")
 suspend inline fun <reified T : Any> WebClient.ResponseSpec.awaitBodyOrNull() : T? =
 	when (T::class) {
 		Unit::class -> awaitBodilessEntity().let { Unit as T? }

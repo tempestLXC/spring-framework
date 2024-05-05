@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -55,7 +55,8 @@ public abstract class MimeTypeUtils {
 	 * Comparator formally used by {@link #sortBySpecificity(List)}.
 	 * @deprecated As of 6.0, with no direct replacement
 	 */
-	@Deprecated
+	@SuppressWarnings("removal")
+	@Deprecated(since = "6.0", forRemoval = true)
 	public static final Comparator<MimeType> SPECIFICITY_COMPARATOR = new MimeType.SpecificityComparator<>();
 
 	/**
@@ -69,8 +70,21 @@ public abstract class MimeTypeUtils {
 	public static final String ALL_VALUE = "*/*";
 
 	/**
+	 * Public constant mime type for {@code application/graphql+json}.
+	 * @since 5.3.19
+	 * @see <a href="https://github.com/graphql/graphql-over-http">GraphQL over HTTP spec</a>
+	 */
+	public static final MimeType APPLICATION_GRAPHQL;
+
+	/**
+	 * A String equivalent of {@link MimeTypeUtils#APPLICATION_GRAPHQL}.
+	 * @since 5.3.19
+	 */
+	public static final String APPLICATION_GRAPHQL_VALUE = "application/graphql+json";
+
+	/**
 	 * Public constant mime type for {@code application/json}.
-	 * */
+	 */
 	public static final MimeType APPLICATION_JSON;
 
 	/**
@@ -167,7 +181,8 @@ public abstract class MimeTypeUtils {
 
 	static {
 		// Not using "parseMimeType" to avoid static init cost
-		ALL = new MimeType("*", "*");
+		ALL = new MimeType(MimeType.WILDCARD_TYPE, MimeType.WILDCARD_TYPE);
+		APPLICATION_GRAPHQL = new MimeType("application", "graphql+json");
 		APPLICATION_JSON = new MimeType("application", "json");
 		APPLICATION_OCTET_STREAM = new MimeType("application", "octet-stream");
 		APPLICATION_XML = new MimeType("application", "xml");
@@ -198,6 +213,7 @@ public abstract class MimeTypeUtils {
 		return cachedMimeTypes.get(mimeType);
 	}
 
+	@SuppressWarnings("NullAway")
 	private static MimeType parseMimeTypeInternal(String mimeType) {
 		int index = mimeType.indexOf(';');
 		String fullType = (index >= 0 ? mimeType.substring(0, index) : mimeType).trim();
@@ -266,7 +282,7 @@ public abstract class MimeTypeUtils {
 	}
 
 	/**
-	 * Parse the comma-separated string into a list of {@code MimeType} objects.
+	 * Parse the comma-separated string into a mutable list of {@code MimeType} objects.
 	 * @param mimeTypes the string to parse
 	 * @return the list of mime types
 	 * @throws InvalidMimeTypeException if the string cannot be parsed
@@ -299,18 +315,14 @@ public abstract class MimeTypeUtils {
 		int i = 0;
 		while (i < mimeTypes.length()) {
 			switch (mimeTypes.charAt(i)) {
-				case '"':
-					inQuotes = !inQuotes;
-					break;
-				case ',':
+				case '"' -> inQuotes = !inQuotes;
+				case ',' -> {
 					if (!inQuotes) {
 						tokens.add(mimeTypes.substring(startIndex, i));
 						startIndex = i + 1;
 					}
-					break;
-				case '\\':
-					i++;
-					break;
+				}
+				case '\\' -> i++;
 			}
 			i++;
 		}
@@ -319,10 +331,10 @@ public abstract class MimeTypeUtils {
 	}
 
 	/**
-	 * Return a string representation of the given list of {@code MimeType} objects.
-	 * @param mimeTypes the string to parse
-	 * @return the list of mime types
-	 * @throws IllegalArgumentException if the String cannot be parsed
+	 * Generate a string representation of the given collection of {@link MimeType}
+	 * objects.
+	 * @param mimeTypes the {@code MimeType} objects
+	 * @return a string representation of the {@code MimeType} objects
 	 */
 	public static String toString(Collection<? extends MimeType> mimeTypes) {
 		StringBuilder builder = new StringBuilder();
@@ -337,21 +349,21 @@ public abstract class MimeTypeUtils {
 	}
 
 	/**
-	 * Sorts the given list of {@code MimeType} objects by
+	 * Sort the given list of {@code MimeType} objects by
 	 * {@linkplain MimeType#isMoreSpecific(MimeType) specificity}.
-	 *
-	 * <p>Because of the computational cost, this method throws an exception
-	 * when the given list contains too many elements.
+	 * <p>Because of the computational cost, this method throws an exception if
+	 * the given list contains too many elements.
 	 * @param mimeTypes the list of mime types to be sorted
-	 * @throws IllegalArgumentException if {@code mimeTypes} contains more
-	 * than 50 elements
+	 * @throws InvalidMimeTypeException if {@code mimeTypes} contains more than 50 elements
 	 * @see <a href="https://tools.ietf.org/html/rfc7231#section-5.3.2">HTTP 1.1: Semantics
 	 * and Content, section 5.3.2</a>
 	 * @see MimeType#isMoreSpecific(MimeType)
 	 */
 	public static <T extends MimeType> void sortBySpecificity(List<T> mimeTypes) {
 		Assert.notNull(mimeTypes, "'mimeTypes' must not be null");
-		Assert.isTrue(mimeTypes.size() <= 50, "Too many elements");
+		if (mimeTypes.size() > 50) {
+			throw new InvalidMimeTypeException(mimeTypes.toString(), "Too many elements");
+		}
 
 		bubbleSort(mimeTypes, MimeType::isLessSpecific);
 	}

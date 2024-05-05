@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,14 +16,21 @@
 
 package org.springframework.web.bind;
 
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+
+import org.springframework.context.MessageSource;
 import org.springframework.core.MethodParameter;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
+import org.springframework.lang.Nullable;
 import org.springframework.validation.BindException;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.ObjectError;
 import org.springframework.web.ErrorResponse;
+import org.springframework.web.util.BindErrorUtils;
 
 /**
  * Exception to be thrown when validation on an argument annotated with {@code @Valid} fails.
@@ -31,6 +38,7 @@ import org.springframework.web.ErrorResponse;
  *
  * @author Rossen Stoyanchev
  * @author Juergen Hoeller
+ * @author Sebastien Deleuze
  * @since 3.1
  */
 @SuppressWarnings("serial")
@@ -49,7 +57,15 @@ public class MethodArgumentNotValidException extends BindException implements Er
 	public MethodArgumentNotValidException(MethodParameter parameter, BindingResult bindingResult) {
 		super(bindingResult);
 		this.parameter = parameter;
-		this.body = ProblemDetail.forStatus(getStatusCode()).withDetail("Invalid request content.");
+		this.body = ProblemDetail.forStatusAndDetail(getStatusCode(), "Invalid request content.");
+	}
+
+
+	/**
+	 * Return the method parameter that failed validation.
+	 */
+	public final MethodParameter getParameter() {
+		return this.parameter;
 	}
 
 	@Override
@@ -62,11 +78,57 @@ public class MethodArgumentNotValidException extends BindException implements Er
 		return this.body;
 	}
 
+	@Override
+	public Object[] getDetailMessageArguments(MessageSource source, Locale locale) {
+		return new Object[] {
+				BindErrorUtils.resolveAndJoin(getGlobalErrors(), source, locale),
+				BindErrorUtils.resolveAndJoin(getFieldErrors(), source, locale)};
+	}
+
+	@Override
+	public Object[] getDetailMessageArguments() {
+		return new Object[] {
+				BindErrorUtils.resolveAndJoin(getGlobalErrors()),
+				BindErrorUtils.resolveAndJoin(getFieldErrors())};
+	}
+
 	/**
-	 * Return the method parameter that failed validation.
+	 * Convert each given {@link ObjectError} to a String.
+	 * @since 6.0
+	 * @deprecated in favor of using {@link BindErrorUtils} and
+	 * {@link #getAllErrors()}, to be removed in 6.2
 	 */
-	public final MethodParameter getParameter() {
-		return this.parameter;
+	@Deprecated(since = "6.1", forRemoval = true)
+	public static List<String> errorsToStringList(List<? extends ObjectError> errors) {
+		return BindErrorUtils.resolve(errors).values().stream().toList();
+	}
+
+	/**
+	 * Convert each given {@link ObjectError} to a String, and use a
+	 * {@link MessageSource} to resolve each error.
+	 * @since 6.0
+	 * @deprecated in favor of {@link BindErrorUtils}, to be removed in 6.2
+	 */
+	@Deprecated(since = "6.1", forRemoval = true)
+	public static List<String> errorsToStringList(
+			List<? extends ObjectError> errors, @Nullable MessageSource messageSource, Locale locale) {
+
+		return (messageSource != null ?
+				BindErrorUtils.resolve(errors, messageSource, locale).values().stream().toList() :
+				BindErrorUtils.resolve(errors).values().stream().toList());
+	}
+
+	/**
+	 * Resolve global and field errors to messages with the given
+	 * {@link MessageSource} and {@link Locale}.
+	 * @return a Map with errors as keys and resolved messages as values
+	 * @since 6.0.3
+	 * @deprecated in favor of using {@link BindErrorUtils} and
+	 * {@link #getAllErrors()}, to be removed in 6.2
+	 */
+	@Deprecated(since = "6.1", forRemoval = true)
+	public Map<ObjectError, String> resolveErrorMessages(MessageSource messageSource, Locale locale) {
+		return BindErrorUtils.resolve(getAllErrors(), messageSource, locale);
 	}
 
 	@Override

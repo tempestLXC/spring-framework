@@ -97,13 +97,14 @@ public class ServletContextResourcePatternResolver extends PathMatchingResourceP
 	 * adding them to the given result set.
 	 * @param servletContext the ServletContext to work on
 	 * @param fullPattern the pattern to match against,
-	 * with preprended root directory path
+	 * with prepended root directory path
 	 * @param dir the current directory
 	 * @param result the Set of matching Resources to add to
 	 * @throws IOException if directory contents could not be retrieved
 	 * @see ServletContextResource
 	 * @see jakarta.servlet.ServletContext#getResourcePaths
 	 */
+	@SuppressWarnings("NullAway")
 	protected void doRetrieveMatchingServletContextResources(
 			ServletContext servletContext, String fullPattern, String dir, Set<Resource> result)
 			throws IOException {

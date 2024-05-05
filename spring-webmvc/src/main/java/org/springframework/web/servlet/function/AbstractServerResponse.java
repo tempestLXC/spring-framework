@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -82,6 +82,7 @@ abstract class AbstractServerResponse extends ErrorHandlingServerResponse {
 	}
 
 	@Override
+	@Nullable
 	public ModelAndView writeTo(HttpServletRequest request, HttpServletResponse response,
 			Context context) throws ServletException, IOException {
 
@@ -136,6 +137,6 @@ abstract class AbstractServerResponse extends ErrorHandlingServerResponse {
 	@Nullable
 	protected abstract ModelAndView writeToInternal(
 			HttpServletRequest request, HttpServletResponse response, Context context)
-			throws ServletException, IOException;
+			throws Exception;
 
 }

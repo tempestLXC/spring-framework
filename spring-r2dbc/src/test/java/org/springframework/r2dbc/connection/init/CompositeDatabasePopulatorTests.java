@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,7 +31,7 @@ import static org.mockito.BDDMockito.verify;
 import static org.mockito.BDDMockito.when;
 
 /**
- * Unit tests for {@link CompositeDatabasePopulator}.
+ * Tests for {@link CompositeDatabasePopulator}.
  *
  * @author Kazuki Shimizu
  * @author Juergen Hoeller
@@ -39,11 +39,11 @@ import static org.mockito.BDDMockito.when;
  */
 class CompositeDatabasePopulatorTests {
 
-	Connection mockedConnection = mock(Connection.class);
+	Connection mockedConnection = mock();
 
-	DatabasePopulator mockedDatabasePopulator1 = mock(DatabasePopulator.class);
+	DatabasePopulator mockedDatabasePopulator1 = mock();
 
-	DatabasePopulator mockedDatabasePopulator2 = mock(DatabasePopulator.class);
+	DatabasePopulator mockedDatabasePopulator2 = mock();
 
 
 	@BeforeEach
@@ -51,6 +51,7 @@ class CompositeDatabasePopulatorTests {
 		when(mockedDatabasePopulator1.populate(mockedConnection)).thenReturn(Mono.empty());
 		when(mockedDatabasePopulator2.populate(mockedConnection)).thenReturn(Mono.empty());
 	}
+
 
 	@Test
 	void addPopulators() {

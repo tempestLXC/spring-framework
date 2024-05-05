@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.ResultMatcher;
+import org.springframework.util.Assert;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.springframework.test.util.AssertionErrors.assertEquals;
@@ -105,7 +106,9 @@ public class StatusResultMatchers {
 	}
 
 	private HttpStatus.Series getHttpStatusSeries(MvcResult result) {
-		return HttpStatus.Series.resolve(result.getResponse().getStatus());
+		HttpStatus.Series series = HttpStatus.Series.resolve(result.getResponse().getStatus());
+		Assert.state(series != null, "HTTP status series must not be null");
+		return series;
 	}
 
 	/**
@@ -145,8 +148,19 @@ public class StatusResultMatchers {
 
 	/**
 	 * Assert the response status code is {@code HttpStatus.CHECKPOINT} (103).
+	 * @see #isEarlyHints()
+	 * @deprecated in favor of {@link #isEarlyHints()}
 	 */
+	@Deprecated(since = "6.0.5")
 	public ResultMatcher isCheckpoint() {
+		return isEarlyHints();
+	}
+
+	/**
+	 * Assert the response status code is {@code HttpStatus.EARLY_HINTS} (103).
+	 * @since 6.0.5
+	 */
+	public ResultMatcher isEarlyHints() {
 		return matcher(HttpStatus.valueOf(103));
 	}
 

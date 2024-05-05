@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -42,7 +42,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.core.ResolvableType.forClass;
 
 /**
- * Unit tests for {@link ServerSentEventHttpMessageWriter}.
+ * Tests for {@link ServerSentEventHttpMessageWriter}.
  *
  * @author Sebastien Deleuze
  * @author Rossen Stoyanchev
@@ -173,14 +173,18 @@ class ServerSentEventHttpMessageWriterTests extends AbstractDataBufferAllocating
 
 		StepVerifier.create(outputMessage.getBody())
 				.consumeNextWith(stringConsumer("data:"))
-				.consumeNextWith(stringConsumer("{\n" +
-						"data:  \"foo\" : \"foofoo\",\n" +
-						"data:  \"bar\" : \"barbar\"\n" + "data:}"))
+				.consumeNextWith(stringConsumer("""
+						{
+						data:  "foo" : "foofoo",
+						data:  "bar" : "barbar"
+						data:}"""))
 				.consumeNextWith(stringConsumer("\n\n"))
 				.consumeNextWith(stringConsumer("data:"))
-				.consumeNextWith(stringConsumer("{\n" +
-						"data:  \"foo\" : \"foofoofoo\",\n" +
-						"data:  \"bar\" : \"barbarbar\"\n" + "data:}"))
+				.consumeNextWith(stringConsumer("""
+						{
+						data:  "foo" : "foofoofoo",
+						data:  "bar" : "barbarbar"
+						data:}"""))
 				.consumeNextWith(stringConsumer("\n\n"))
 				.expectComplete()
 				.verify();

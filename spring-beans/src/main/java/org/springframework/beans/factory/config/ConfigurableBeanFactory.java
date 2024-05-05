@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 package org.springframework.beans.factory.config;
 
 import java.beans.PropertyEditor;
+import java.util.concurrent.Executor;
 
 import org.springframework.beans.PropertyEditorRegistrar;
 import org.springframework.beans.PropertyEditorRegistry;
@@ -25,6 +26,7 @@ import org.springframework.beans.factory.BeanDefinitionStoreException;
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.HierarchicalBeanFactory;
 import org.springframework.beans.factory.NoSuchBeanDefinitionException;
+import org.springframework.beans.factory.support.AbstractBeanDefinition;
 import org.springframework.core.convert.ConversionService;
 import org.springframework.core.metrics.ApplicationStartup;
 import org.springframework.lang.Nullable;
@@ -147,7 +149,23 @@ public interface ConfigurableBeanFactory extends HierarchicalBeanFactory, Single
 	BeanExpressionResolver getBeanExpressionResolver();
 
 	/**
-	 * Specify a Spring 3.0 ConversionService to use for converting
+	 * Set the {@link Executor} (possibly a {@link org.springframework.core.task.TaskExecutor})
+	 * for background bootstrapping.
+	 * @since 6.2
+	 * @see AbstractBeanDefinition#setBackgroundInit
+	 */
+	void setBootstrapExecutor(@Nullable Executor executor);
+
+	/**
+	 * Return the {@link Executor} (possibly a {@link org.springframework.core.task.TaskExecutor})
+	 * for background bootstrapping, if any.
+	 * @since 6.2
+	 */
+	@Nullable
+	Executor getBootstrapExecutor();
+
+	/**
+	 * Specify a {@link ConversionService} to use for converting
 	 * property values, as an alternative to JavaBeans PropertyEditors.
 	 * @since 3.0
 	 */

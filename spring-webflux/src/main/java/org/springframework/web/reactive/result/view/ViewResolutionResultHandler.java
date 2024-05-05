@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,13 +17,11 @@
 package org.springframework.web.reactive.result.view;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -41,10 +39,9 @@ import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.lang.Nullable;
 import org.springframework.ui.Model;
+import org.springframework.util.ClassUtils;
 import org.springframework.util.StringUtils;
-import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.ModelAttribute;
-import org.springframework.web.bind.support.WebExchangeDataBinder;
 import org.springframework.web.reactive.BindingContext;
 import org.springframework.web.reactive.HandlerResult;
 import org.springframework.web.reactive.HandlerResultHandler;
@@ -57,7 +54,7 @@ import org.springframework.web.server.ServerWebExchange;
  * {@code HandlerResultHandler} that encapsulates the view resolution algorithm
  * supporting the following return types:
  * <ul>
- * <li>{@link Void} or no value -- default view name</li>
+ * <li>{@link Void}, {@code void}, or no value -- default view name</li>
  * <li>{@link String} -- view name unless {@code @ModelAttribute}-annotated
  * <li>{@link View} -- View to render with
  * <li>{@link Model} -- attributes to add to the model
@@ -206,7 +203,7 @@ public class ViewResolutionResultHandler extends HandlerResultHandlerSupport imp
 						clazz = returnValue.getClass();
 					}
 
-					if (returnValue == NO_VALUE || clazz == void.class || clazz == Void.class) {
+					if (returnValue == NO_VALUE || ClassUtils.isVoidType(clazz)) {
 						viewsMono = resolveViews(getDefaultViewName(exchange), locale);
 					}
 					else if (CharSequence.class.isAssignableFrom(clazz) && !hasModelAnnotation(parameter)) {
@@ -224,7 +221,7 @@ public class ViewResolutionResultHandler extends HandlerResultHandlerSupport imp
 						if (view == null) {
 							view = getDefaultViewName(exchange);
 						}
-						viewsMono = (view instanceof String ? resolveViews((String) view, locale) :
+						viewsMono = (view instanceof String viewName ? resolveViews(viewName, locale) :
 								Mono.just(Collections.singletonList((View) view)));
 					}
 					else if (Model.class.isAssignableFrom(clazz)) {
@@ -244,7 +241,7 @@ public class ViewResolutionResultHandler extends HandlerResultHandlerSupport imp
 						viewsMono = resolveViews(getDefaultViewName(exchange), locale);
 					}
 					BindingContext bindingContext = result.getBindingContext();
-					updateBindingResult(bindingContext, exchange);
+					bindingContext.updateModel(exchange);
 					return viewsMono.flatMap(views -> render(views, model.asMap(), bindingContext, exchange));
 				});
 	}
@@ -288,27 +285,6 @@ public class ViewResolutionResultHandler extends HandlerResultHandlerSupport imp
 				.filter(ann -> StringUtils.hasText(ann.value()))
 				.map(ModelAttribute::value)
 				.orElseGet(() -> Conventions.getVariableNameForParameter(returnType));
-	}
-
-	private void updateBindingResult(BindingContext context, ServerWebExchange exchange) {
-		Map<String, Object> model = context.getModel().asMap();
-		for (Map.Entry<String, Object> entry : model.entrySet()) {
-			String name = entry.getKey();
-			Object value = entry.getValue();
-			if (isBindingCandidate(name, value)) {
-				if (!model.containsKey(BindingResult.MODEL_KEY_PREFIX + name)) {
-					WebExchangeDataBinder binder = context.createDataBinder(exchange, value, name);
-					model.put(BindingResult.MODEL_KEY_PREFIX + name, binder.getBindingResult());
-				}
-			}
-		}
-	}
-
-	private boolean isBindingCandidate(String name, @Nullable Object value) {
-		return (!name.startsWith(BindingResult.MODEL_KEY_PREFIX) && value != null &&
-				!value.getClass().isArray() && !(value instanceof Collection) && !(value instanceof Map) &&
-				getAdapterRegistry().getAdapter(null, value) == null &&
-				!BeanUtils.isSimpleValueType(value.getClass()));
 	}
 
 	private Mono<? extends Void> render(List<View> views, Map<String, Object> model,
@@ -357,7 +333,7 @@ public class ViewResolutionResultHandler extends HandlerResultHandlerSupport imp
 	private List<MediaType> getMediaTypes(List<View> views) {
 		return views.stream()
 				.flatMap(view -> view.getSupportedMediaTypes().stream())
-				.collect(Collectors.toList());
+				.toList();
 	}
 
 }

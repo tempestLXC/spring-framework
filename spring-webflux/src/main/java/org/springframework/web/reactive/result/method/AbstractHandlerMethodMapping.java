@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -107,9 +107,8 @@ public abstract class AbstractHandlerMethodMapping<T> extends AbstractHandlerMap
 	public Map<T, HandlerMethod> getHandlerMethods() {
 		this.mappingRegistry.acquireReadLock();
 		try {
-			return Collections.unmodifiableMap(
-					this.mappingRegistry.getRegistrations().entrySet().stream()
-							.collect(Collectors.toMap(Map.Entry::getKey, entry -> entry.getValue().handlerMethod)));
+			return this.mappingRegistry.getRegistrations().entrySet().stream()
+					.collect(Collectors.toUnmodifiableMap(Map.Entry::getKey, entry -> entry.getValue().handlerMethod));
 		}
 		finally {
 			this.mappingRegistry.releaseReadLock();
@@ -362,6 +361,7 @@ public abstract class AbstractHandlerMethodMapping<T> extends AbstractHandlerMap
 		}
 	}
 
+	@SuppressWarnings("NullAway")
 	private void addMatchingMappings(Collection<T> mappings, List<Match> matches, ServerWebExchange exchange) {
 		for (T mapping : mappings) {
 			T match = getMatchingMapping(mapping, exchange);
@@ -401,6 +401,7 @@ public abstract class AbstractHandlerMethodMapping<T> extends AbstractHandlerMap
 	}
 
 	@Override
+	@Nullable
 	protected CorsConfiguration getCorsConfiguration(Object handler, ServerWebExchange exchange) {
 		CorsConfiguration corsConfig = super.getCorsConfiguration(handler, exchange);
 		if (handler instanceof HandlerMethod handlerMethod) {
@@ -427,7 +428,7 @@ public abstract class AbstractHandlerMethodMapping<T> extends AbstractHandlerMap
 	 * Provide the mapping for a handler method. A method for which no
 	 * mapping can be provided is not a handler method.
 	 * @param method the method to provide a mapping for
-	 * @param handlerType the handler type, possibly a sub-type of the method's
+	 * @param handlerType the handler type, possibly a subtype of the method's
 	 * declaring class
 	 * @return the mapping, or {@code null} if the method is not mapped
 	 */
@@ -525,6 +526,9 @@ public abstract class AbstractHandlerMethodMapping<T> extends AbstractHandlerMap
 				HandlerMethod handlerMethod = createHandlerMethod(handler, method);
 				validateMethodMapping(handlerMethod, mapping);
 
+				// Enable method validation, if applicable
+				handlerMethod = handlerMethod.createWithValidateFlags();
+
 				Set<String> directPaths = AbstractHandlerMethodMapping.this.getDirectPaths(mapping);
 				for (String path : directPaths) {
 					this.pathLookup.add(path, mapping);
@@ -533,6 +537,7 @@ public abstract class AbstractHandlerMethodMapping<T> extends AbstractHandlerMap
 				CorsConfiguration corsConfig = initCorsConfiguration(handler, method, mapping);
 				if (corsConfig != null) {
 					corsConfig.validateAllowCredentials();
+					corsConfig.validateAllowPrivateNetwork();
 					this.corsLookup.put(handlerMethod, corsConfig);
 				}
 

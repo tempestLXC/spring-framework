@@ -1,3 +1,4 @@
+import org.gradle.plugins.ide.eclipse.model.Library
 import org.gradle.plugins.ide.eclipse.model.ProjectDependency
 import org.gradle.plugins.ide.eclipse.model.SourceFolder
 
@@ -6,6 +7,7 @@ apply plugin: 'eclipse'
 eclipse.jdt {
 	sourceCompatibility = 17
 	targetCompatibility = 17
+	javaRuntimeName = "JavaSE-17"
 }
 
 // Replace classpath entries with project dependencies (GRADLE-1116)
@@ -30,7 +32,7 @@ eclipse.classpath.file.whenMerged { classpath ->
 	}
 
 	// Remove any remaining direct depencencies on JARs in the build/libs folder
-	// except Spring's spring-cglib-repack and spring-objenesis-repack JARs.
+	// except the repack JARs.
 	classpath.entries.removeAll { entry -> (entry.path =~ /(?!.*?repack.*\.jar).*?\/([^\/]+)\/build\/libs\/[^\/]+\.jar/) }
 }
 
@@ -60,18 +62,25 @@ eclipse.classpath.file.whenMerged {
 	}
 }
 
-// Ensure that JMH sources and resources are treated as test classpath entries
-// so that they can see test fixtures.
-// https://github.com/melix/jmh-gradle-plugin/issues/157
+// Remove recursive project dependencies
 eclipse.classpath.file.whenMerged {
-	entries.findAll { it.path =~ /src\/jmh\/(java|resources)/ }.each {
-		it.entryAttributes['test'] = 'true'
+	entries.findAll { it instanceof ProjectDependency && it.path == ('/' + project.name) }.each {
+		entries.remove(it)
+	}
+}
+
+// Remove classpath entries for non-existent libraries added by the me.champeau.mrjar
+// plugin, such as "spring-core/build/classes/kotlin/java21".
+eclipse.classpath.file.whenMerged {
+	entries.findAll { it instanceof Library && !file(it.path).exists() }.each {
+		entries.remove(it)
 	}
 }
 
 // Include project specific settings
 task eclipseSettings(type: Copy) {
 	from rootProject.files(
+		'src/eclipse/org.eclipse.core.resources.prefs',
 		'src/eclipse/org.eclipse.jdt.core.prefs',
 		'src/eclipse/org.eclipse.jdt.ui.prefs')
 	into project.file('.settings/')
@@ -79,6 +88,7 @@ task eclipseSettings(type: Copy) {
 }
 
 task cleanEclipseSettings(type: Delete) {
+	delete project.file('.settings/org.eclipse.core.resources.prefs')
 	delete project.file('.settings/org.eclipse.jdt.core.prefs')
 	delete project.file('.settings/org.eclipse.jdt.ui.prefs')
 }

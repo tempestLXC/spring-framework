@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -49,6 +49,7 @@ public class DateFormatter implements Formatter<Date> {
 
 	private static final TimeZone UTC = TimeZone.getTimeZone("UTC");
 
+	// We use an EnumMap instead of Map.of(...) since the former provides better performance.
 	private static final Map<ISO, String> ISO_PATTERNS;
 
 	static {
@@ -181,7 +182,7 @@ public class DateFormatter implements Formatter<Date> {
 	}
 
 	/**
-	 * Specify whether or not parsing is to be lenient. Default is false.
+	 * Specify whether parsing is to be lenient. Default is {@code false}.
 	 * <p>With lenient parsing, the parser may allow inputs that do not precisely match the format.
 	 * With strict parsing, inputs must match the format exactly.
 	 */
@@ -268,7 +269,7 @@ public class DateFormatter implements Formatter<Date> {
 			if (timeStyle != -1) {
 				return DateFormat.getTimeInstance(timeStyle, locale);
 			}
-			throw new IllegalStateException("Unsupported style pattern '" + this.stylePattern + "'");
+			throw unsupportedStylePatternException();
 
 		}
 		return DateFormat.getDateInstance(this.style, locale);
@@ -276,15 +277,21 @@ public class DateFormatter implements Formatter<Date> {
 
 	private int getStylePatternForChar(int index) {
 		if (this.stylePattern != null && this.stylePattern.length() > index) {
-			switch (this.stylePattern.charAt(index)) {
-				case 'S': return DateFormat.SHORT;
-				case 'M': return DateFormat.MEDIUM;
-				case 'L': return DateFormat.LONG;
-				case 'F': return DateFormat.FULL;
-				case '-': return -1;
-			}
+			char ch = this.stylePattern.charAt(index);
+			return switch (ch) {
+				case 'S' -> DateFormat.SHORT;
+				case 'M' -> DateFormat.MEDIUM;
+				case 'L' -> DateFormat.LONG;
+				case 'F' -> DateFormat.FULL;
+				case '-' -> -1;
+				default -> throw unsupportedStylePatternException();
+			};
 		}
-		throw new IllegalStateException("Unsupported style pattern '" + this.stylePattern + "'");
+		throw unsupportedStylePatternException();
+	}
+
+	private IllegalStateException unsupportedStylePatternException() {
+		return new IllegalStateException("Unsupported style pattern '" + this.stylePattern + "'");
 	}
 
 }

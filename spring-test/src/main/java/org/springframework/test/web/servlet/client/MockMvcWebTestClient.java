@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35,8 +35,8 @@ import org.springframework.test.web.servlet.ResultHandler;
 import org.springframework.test.web.servlet.ResultMatcher;
 import org.springframework.test.web.servlet.setup.ConfigurableMockMvcBuilder;
 import org.springframework.test.web.servlet.setup.MockMvcConfigurer;
+import org.springframework.test.web.servlet.setup.RouterFunctionMockMvcBuilder;
 import org.springframework.test.web.servlet.setup.StandaloneMockMvcBuilder;
-import org.springframework.util.Assert;
 import org.springframework.validation.Validator;
 import org.springframework.web.accept.ContentNegotiationManager;
 import org.springframework.web.context.WebApplicationContext;
@@ -48,6 +48,7 @@ import org.springframework.web.servlet.HandlerInterceptor;
 import org.springframework.web.servlet.LocaleResolver;
 import org.springframework.web.servlet.View;
 import org.springframework.web.servlet.ViewResolver;
+import org.springframework.web.servlet.function.RouterFunction;
 import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
 import org.springframework.web.util.pattern.PathPatternParser;
 
@@ -82,11 +83,23 @@ public interface MockMvcWebTestClient {
 	 * Begin creating a {@link WebTestClient} by providing the {@code @Controller}
 	 * instance(s) to handle requests with.
 	 * <p>Internally this is delegated to and equivalent to using
-	 * {@link org.springframework.test.web.servlet.setup.MockMvcBuilders#standaloneSetup(Object...)}.
+	 * {@link org.springframework.test.web.servlet.setup.MockMvcBuilders#standaloneSetup(Object...)}
 	 * to initialize {@link MockMvc}.
 	 */
 	static ControllerSpec bindToController(Object... controllers) {
 		return new StandaloneMockMvcSpec(controllers);
+	}
+
+	/**
+	 * Begin creating a {@link WebTestClient} by providing the {@link RouterFunction}
+	 * instance(s) to handle requests with.
+	 * <p>Internally this is delegated to and equivalent to using
+	 * {@link org.springframework.test.web.servlet.setup.MockMvcBuilders#routerFunctions(RouterFunction[])}
+	 * to initialize {@link MockMvc}.
+	 * @since 6.2
+	 */
+	static RouterFunctionSpec bindToRouterFunction(RouterFunction<?>... routerFunctions) {
+		return new RouterFunctionMockMvcSpec(routerFunctions);
 	}
 
 	/**
@@ -140,22 +153,25 @@ public interface MockMvcWebTestClient {
 	 */
 	static ResultActions resultActionsFor(ExchangeResult exchangeResult) {
 		Object serverResult = exchangeResult.getMockServerResult();
-		Assert.notNull(serverResult, "No MvcResult");
-		Assert.isInstanceOf(MvcResult.class, serverResult);
+		if (!(serverResult instanceof MvcResult mvcResult)) {
+			throw new IllegalArgumentException(
+					"Result from mock server exchange must be an instance of MvcResult instead of " +
+							(serverResult != null ? serverResult.getClass().getName() : "null"));
+		}
 		return new ResultActions() {
 			@Override
 			public ResultActions andExpect(ResultMatcher matcher) throws Exception {
-				matcher.match((MvcResult) serverResult);
+				matcher.match(mvcResult);
 				return this;
 			}
 			@Override
 			public ResultActions andDo(ResultHandler handler) throws Exception {
-				handler.handle((MvcResult) serverResult);
+				handler.handle(mvcResult);
 				return this;
 			}
 			@Override
 			public MvcResult andReturn() {
-				return (MvcResult) serverResult;
+				return mvcResult;
 			}
 		};
 	}
@@ -358,7 +374,10 @@ public interface MockMvcWebTestClient {
 		 * Whether to match trailing slashes.
 		 * <p>This is delegated to
 		 * {@link StandaloneMockMvcBuilder#setUseTrailingSlashPatternMatch(boolean)}.
+		 * @deprecated as of 6.0, see
+		 * {@link PathPatternParser#setMatchOptionalTrailingSeparator(boolean)}
 		 */
+		@Deprecated(since = "6.0")
 		ControllerSpec useTrailingSlashPatternMatch(boolean useTrailingSlashPatternMatch);
 
 		/**
@@ -374,6 +393,74 @@ public interface MockMvcWebTestClient {
 		 * {@link StandaloneMockMvcBuilder#setCustomHandlerMapping(Supplier)}.
 		 */
 		ControllerSpec customHandlerMapping(Supplier<RequestMappingHandlerMapping> factory);
+	}
+
+
+	/**
+	 * Specification for configuring {@link MockMvc} to test one or more
+	 * {@linkplain RouterFunction router functions}
+	 * directly, and a simple facade around {@link RouterFunctionMockMvcBuilder}.
+	 * @since 6.2
+	 */
+	interface RouterFunctionSpec extends MockMvcServerSpec<RouterFunctionSpec> {
+
+		/**
+		 * Set the message converters to use.
+		 * <p>This is delegated to
+		 * {@link RouterFunctionMockMvcBuilder#setMessageConverters(HttpMessageConverter[])}.
+		 */
+		RouterFunctionSpec messageConverters(HttpMessageConverter<?>... messageConverters);
+
+		/**
+		 * Add global interceptors.
+		 * <p>This is delegated to
+		 * {@link RouterFunctionMockMvcBuilder#addInterceptors(HandlerInterceptor...)}.
+		 */
+		RouterFunctionSpec interceptors(HandlerInterceptor... interceptors);
+
+		/**
+		 * Add interceptors for specific patterns.
+		 * <p>This is delegated to
+		 * {@link RouterFunctionMockMvcBuilder#addMappedInterceptors(String[], HandlerInterceptor...)}.
+		 */
+		RouterFunctionSpec mappedInterceptors(
+				@Nullable String[] pathPatterns, HandlerInterceptor... interceptors);
+
+		/**
+		 * Specify the timeout value for async execution.
+		 * <p>This is delegated to
+		 * {@link RouterFunctionMockMvcBuilder#setAsyncRequestTimeout(long)}.
+		 */
+		RouterFunctionSpec asyncRequestTimeout(long timeout);
+
+		/**
+		 * Set the HandlerExceptionResolver types to use.
+		 * <p>This is delegated to
+		 * {@link RouterFunctionMockMvcBuilder#setHandlerExceptionResolvers(HandlerExceptionResolver...)}.
+		 */
+		RouterFunctionSpec handlerExceptionResolvers(HandlerExceptionResolver... exceptionResolvers);
+
+		/**
+		 * Set up view resolution.
+		 * <p>This is delegated to
+		 * {@link RouterFunctionMockMvcBuilder#setViewResolvers(ViewResolver...)}.
+		 */
+		RouterFunctionSpec viewResolvers(ViewResolver... resolvers);
+
+		/**
+		 * Set up a single {@link ViewResolver} with a fixed view.
+		 * <p>This is delegated to
+		 * {@link RouterFunctionMockMvcBuilder#setSingleView(View)}.
+		 */
+		RouterFunctionSpec singleView(View view);
+
+		/**
+		 * Enable URL path matching with parsed
+		 * {@link org.springframework.web.util.pattern.PathPattern PathPatterns}.
+		 * <p>This is delegated to
+		 * {@link RouterFunctionMockMvcBuilder#setPatternParser(PathPatternParser)}.
+		 */
+		RouterFunctionSpec patternParser(PathPatternParser parser);
 	}
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
@@ -38,6 +39,7 @@ import org.springframework.core.log.LogFormatUtils;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpInputMessage;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpOutputMessage;
 import org.springframework.http.HttpRequest;
 import org.springframework.http.InvalidMediaTypeException;
 import org.springframework.http.MediaType;
@@ -48,7 +50,6 @@ import org.springframework.http.server.ServletServerHttpRequest;
 import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.MimeTypeUtils;
-import org.springframework.util.StreamUtils;
 import org.springframework.validation.Errors;
 import org.springframework.validation.annotation.ValidationAnnotationUtils;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
@@ -139,10 +140,17 @@ public abstract class AbstractMessageConverterMethodArgumentResolver implements 
 	 * @throws IOException if the reading from the request fails
 	 * @throws HttpMediaTypeNotSupportedException if no suitable message converter is found
 	 */
-	@SuppressWarnings("unchecked")
 	@Nullable
+	@SuppressWarnings({"rawtypes", "unchecked", "NullAway"})
 	protected <T> Object readWithMessageConverters(HttpInputMessage inputMessage, MethodParameter parameter,
 			Type targetType) throws IOException, HttpMediaTypeNotSupportedException, HttpMessageNotReadableException {
+
+		Class<?> contextClass = parameter.getContainingClass();
+		Class<T> targetClass = (targetType instanceof Class clazz ? clazz : null);
+		if (targetClass == null) {
+			ResolvableType resolvableType = ResolvableType.forMethodParameter(parameter);
+			targetClass = (Class<T>) resolvableType.resolve();
+		}
 
 		MediaType contentType;
 		boolean noContentType = false;
@@ -150,31 +158,24 @@ public abstract class AbstractMessageConverterMethodArgumentResolver implements 
 			contentType = inputMessage.getHeaders().getContentType();
 		}
 		catch (InvalidMediaTypeException ex) {
-			throw new HttpMediaTypeNotSupportedException(ex.getMessage());
+			throw new HttpMediaTypeNotSupportedException(
+					ex.getMessage(), getSupportedMediaTypes(targetClass != null ? targetClass : Object.class));
 		}
 		if (contentType == null) {
 			noContentType = true;
 			contentType = MediaType.APPLICATION_OCTET_STREAM;
 		}
 
-		Class<?> contextClass = parameter.getContainingClass();
-		Class<T> targetClass = (targetType instanceof Class ? (Class<T>) targetType : null);
-		if (targetClass == null) {
-			ResolvableType resolvableType = ResolvableType.forMethodParameter(parameter);
-			targetClass = (Class<T>) resolvableType.resolve();
-		}
-
-		HttpMethod httpMethod = (inputMessage instanceof HttpRequest ? ((HttpRequest) inputMessage).getMethod() : null);
+		HttpMethod httpMethod = (inputMessage instanceof HttpRequest httpRequest ? httpRequest.getMethod() : null);
 		Object body = NO_VALUE;
 
 		EmptyBodyCheckingHttpInputMessage message = null;
 		try {
 			message = new EmptyBodyCheckingHttpInputMessage(inputMessage);
-
 			for (HttpMessageConverter<?> converter : this.messageConverters) {
 				Class<HttpMessageConverter<?>> converterType = (Class<HttpMessageConverter<?>>) converter.getClass();
 				GenericHttpMessageConverter<?> genericConverter =
-						(converter instanceof GenericHttpMessageConverter ? (GenericHttpMessageConverter<?>) converter : null);
+						(converter instanceof GenericHttpMessageConverter ghmc ? ghmc : null);
 				if (genericConverter != null ? genericConverter.canRead(targetType, contextClass, contentType) :
 						(targetClass != null && converter.canRead(targetClass, contentType))) {
 					if (message.hasBody()) {
@@ -190,6 +191,10 @@ public abstract class AbstractMessageConverterMethodArgumentResolver implements 
 					break;
 				}
 			}
+			if (body == NO_VALUE && noContentType && !message.hasBody()) {
+				body = getAdvice().handleEmptyBody(
+						null, message, parameter, targetType, NoContentTypeHttpMessageConverter.class);
+			}
 		}
 		catch (IOException ex) {
 			throw new HttpMessageNotReadableException("I/O error while reading input message", ex, inputMessage);
@@ -201,8 +206,7 @@ public abstract class AbstractMessageConverterMethodArgumentResolver implements 
 		}
 
 		if (body == NO_VALUE) {
-			if (httpMethod == null || !SUPPORTED_METHODS.contains(httpMethod) ||
-					(noContentType && !message.hasBody())) {
+			if (httpMethod == null || !SUPPORTED_METHODS.contains(httpMethod) || (noContentType && !message.hasBody())) {
 				return null;
 			}
 			throw new HttpMediaTypeNotSupportedException(contentType,
@@ -290,8 +294,8 @@ public abstract class AbstractMessageConverterMethodArgumentResolver implements 
 	@Nullable
 	protected Object adaptArgumentIfNecessary(@Nullable Object arg, MethodParameter parameter) {
 		if (parameter.getParameterType() == Optional.class) {
-			if (arg == null || (arg instanceof Collection && ((Collection<?>) arg).isEmpty()) ||
-					(arg instanceof Object[] && ((Object[]) arg).length == 0)) {
+			if (arg == null || (arg instanceof Collection<?> collection && collection.isEmpty()) ||
+					(arg instanceof Object[] array && array.length == 0)) {
 				return Optional.empty();
 			}
 			else {
@@ -346,11 +350,45 @@ public abstract class AbstractMessageConverterMethodArgumentResolver implements 
 
 		@Override
 		public InputStream getBody() {
-			return (this.body != null ? this.body : StreamUtils.emptyInput());
+			return (this.body != null ? this.body : InputStream.nullInputStream());
 		}
 
 		public boolean hasBody() {
 			return (this.body != null);
+		}
+	}
+
+
+	/**
+	 * Placeholder HttpMessageConverter type to pass to RequestBodyAdvice if there
+	 * is no content-type and no content. In that case, we may not find a converter,
+	 * but RequestBodyAdvice have a chance to provide it via handleEmptyBody.
+	 */
+	private static class NoContentTypeHttpMessageConverter implements HttpMessageConverter<String> {
+
+		@Override
+		public boolean canRead(Class<?> clazz, @Nullable MediaType mediaType) {
+			return false;
+		}
+
+		@Override
+		public boolean canWrite(Class<?> clazz, @Nullable MediaType mediaType) {
+			return false;
+		}
+
+		@Override
+		public List<MediaType> getSupportedMediaTypes() {
+			return Collections.emptyList();
+		}
+
+		@Override
+		public String read(Class<? extends String> clazz, HttpInputMessage inputMessage) {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public void write(String s, @Nullable MediaType contentType, HttpOutputMessage outputMessage) {
+			throw new UnsupportedOperationException();
 		}
 	}
 

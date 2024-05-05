@@ -35,7 +35,7 @@ import org.springframework.web.servlet.ModelAndView;
 
 /**
  * Spring Controller implementation that wraps a servlet instance which it manages
- * internally. Such a wrapped servlet is not known outside of this controller;
+ * internally. Such a wrapped servlet is not known outside this controller;
  * its entire lifecycle is covered here (in contrast to {@link ServletForwardingController}).
  *
  * <p>Useful to invoke an existing servlet via Spring's dispatching infrastructure,
@@ -159,6 +159,7 @@ public class ServletWrappingController extends AbstractController
 	 * @see jakarta.servlet.Servlet#service(jakarta.servlet.ServletRequest, jakarta.servlet.ServletResponse)
 	 */
 	@Override
+	@Nullable
 	protected ModelAndView handleRequestInternal(HttpServletRequest request, HttpServletResponse response)
 			throws Exception {
 

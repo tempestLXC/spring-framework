@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -52,6 +52,7 @@ import org.springframework.web.context.ServletContextAware;
  * <p>In addition to the special beans detected by
  * {@link org.springframework.context.support.AbstractApplicationContext AbstractApplicationContext},
  * this class detects a {@link ThemeSource} bean in the context, with the name "themeSource".
+ * Theme support is deprecated as of 6.0 with no direct replacement.
  *
  * <p>If you wish to register annotated <em>component classes</em> with a
  * {@code GenericWebApplicationContext}, you can use an
@@ -77,6 +78,7 @@ import org.springframework.web.context.ServletContextAware;
  * @author Sam Brannen
  * @since 1.2
  */
+@SuppressWarnings("deprecation")
 public class GenericWebApplicationContext extends GenericApplicationContext
 		implements ConfigurableWebApplicationContext, ThemeSource {
 
@@ -94,7 +96,6 @@ public class GenericWebApplicationContext extends GenericApplicationContext
 	 * @see #refresh
 	 */
 	public GenericWebApplicationContext() {
-		super();
 	}
 
 	/**
@@ -206,13 +207,14 @@ public class GenericWebApplicationContext extends GenericApplicationContext
 	@Override
 	protected void initPropertySources() {
 		ConfigurableEnvironment env = getEnvironment();
-		if (env instanceof ConfigurableWebEnvironment) {
-			((ConfigurableWebEnvironment) env).initPropertySources(this.servletContext, null);
+		if (env instanceof ConfigurableWebEnvironment configurableWebEnv) {
+			configurableWebEnv.initPropertySources(this.servletContext, null);
 		}
 	}
 
 	@Override
 	@Nullable
+	@Deprecated
 	public Theme getTheme(String themeName) {
 		Assert.state(this.themeSource != null, "No ThemeSource available");
 		return this.themeSource.getTheme(themeName);

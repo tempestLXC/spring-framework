@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,7 +27,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
+import java.util.function.Function;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -42,7 +42,6 @@ import org.springframework.core.log.LogFormatUtils;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.MediaTypeFactory;
 import org.springframework.http.codec.ResourceHttpMessageWriter;
@@ -55,9 +54,9 @@ import org.springframework.util.ResourceUtils;
 import org.springframework.util.StringUtils;
 import org.springframework.web.reactive.HandlerMapping;
 import org.springframework.web.server.MethodNotAllowedException;
-import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.server.ServerWebExchange;
 import org.springframework.web.server.WebHandler;
+import org.springframework.web.util.pattern.PathPattern;
 
 /**
  * {@code HttpRequestHandler} that serves static resources in an optimized way
@@ -124,6 +123,9 @@ public class ResourceWebHandler implements WebHandler, InitializingBean {
 	private Map<String, MediaType> mediaTypes;
 
 	private boolean useLastModified = true;
+
+	@Nullable
+	private Function<Resource, String> etagGenerator;
 
 	private boolean optimizeLocations = false;
 
@@ -278,6 +280,29 @@ public class ResourceWebHandler implements WebHandler, InitializingBean {
 	}
 
 	/**
+	 * Configure a generator function that will be used to create the ETag information,
+	 * given a {@link Resource} that is about to be written to the response.
+	 * <p>This function should return a String that will be used as an argument in
+	 * {@link ServerWebExchange#checkNotModified(String)}, or {@code null} if no value
+	 * can be generated for the given resource.
+	 * @param etagGenerator the HTTP ETag generator function to use.
+	 * @since 6.1
+	 */
+	public void setEtagGenerator(@Nullable Function<Resource, String> etagGenerator) {
+		this.etagGenerator = etagGenerator;
+	}
+
+	/**
+	 * Return the HTTP ETag generator function to be used when serving resources.
+	 * @return the HTTP ETag generator function
+	 * @since 6.1
+	 */
+	@Nullable
+	public Function<Resource, String> getEtagGenerator() {
+		return this.etagGenerator;
+	}
+
+	/**
 	 * Set whether to optimize the specified locations through an existence
 	 * check on startup, filtering non-existing directories upfront so that
 	 * they do not have to be checked on every resource access.
@@ -309,6 +334,7 @@ public class ResourceWebHandler implements WebHandler, InitializingBean {
 	 * @param mediaTypes media type mappings
 	 * @since 5.3.2
 	 */
+	@SuppressWarnings("NullAway")
 	public void setMediaTypes(Map<String, MediaType> mediaTypes) {
 		if (this.mediaTypes == null) {
 			this.mediaTypes = new HashMap<>(mediaTypes.size());
@@ -359,7 +385,7 @@ public class ResourceWebHandler implements WebHandler, InitializingBean {
 		}
 
 		if (isOptimizeLocations()) {
-			result = result.stream().filter(Resource::exists).collect(Collectors.toList());
+			result = result.stream().filter(Resource::exists).toList();
 		}
 
 		this.locationsToUse.clear();
@@ -403,7 +429,7 @@ public class ResourceWebHandler implements WebHandler, InitializingBean {
 		return getResource(exchange)
 				.switchIfEmpty(Mono.defer(() -> {
 					logger.debug(exchange.getLogPrefix() + "Resource not found");
-					return Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND));
+					return Mono.error(new NoResourceFoundException(getResourcePath(exchange)));
 				}))
 				.flatMap(resource -> {
 					try {
@@ -420,7 +446,9 @@ public class ResourceWebHandler implements WebHandler, InitializingBean {
 						}
 
 						// Header phase
-						if (isUseLastModified() && exchange.checkNotModified(Instant.ofEpochMilli(resource.lastModified()))) {
+						String eTagValue = (this.getEtagGenerator() != null) ? this.getEtagGenerator().apply(resource) : null;
+						Instant lastModified = isUseLastModified() ? Instant.ofEpochMilli(resource.lastModified()) : Instant.MIN;
+						if (exchange.checkNotModified(eTagValue, lastModified)) {
 							logger.trace(exchange.getLogPrefix() + "Resource not modified");
 							return Mono.empty();
 						}
@@ -438,10 +466,17 @@ public class ResourceWebHandler implements WebHandler, InitializingBean {
 						// Content phase
 						ResourceHttpMessageWriter writer = getResourceHttpMessageWriter();
 						Assert.state(writer != null, "No ResourceHttpMessageWriter");
-						return writer.write(Mono.just(resource),
-								null, ResolvableType.forClass(Resource.class), mediaType,
-								exchange.getRequest(), exchange.getResponse(),
-								Hints.from(Hints.LOG_PREFIX_HINT, exchange.getLogPrefix()));
+						if (HttpMethod.HEAD == httpMethod) {
+							return writer.addDefaultHeaders(exchange.getResponse(), resource, mediaType,
+											Hints.from(Hints.LOG_PREFIX_HINT, exchange.getLogPrefix()))
+									.then(exchange.getResponse().setComplete());
+						}
+						else {
+							return writer.write(Mono.just(resource),
+									null, ResolvableType.forClass(Resource.class), mediaType,
+									exchange.getRequest(), exchange.getResponse(),
+									Hints.from(Hints.LOG_PREFIX_HINT, exchange.getLogPrefix()));
+						}
 					}
 					catch (IOException ex) {
 						return Mono.error(ex);
@@ -449,11 +484,10 @@ public class ResourceWebHandler implements WebHandler, InitializingBean {
 				});
 	}
 
+	@SuppressWarnings("NullAway")
 	protected Mono<Resource> getResource(ServerWebExchange exchange) {
-		String name = HandlerMapping.PATH_WITHIN_HANDLER_MAPPING_ATTRIBUTE;
-		PathContainer pathWithinHandler = exchange.getRequiredAttribute(name);
-
-		String path = processPath(pathWithinHandler.value());
+		String rawPath = getResourcePath(exchange);
+		String path = processPath(rawPath);
 		if (!StringUtils.hasText(path) || isInvalidPath(path)) {
 			return Mono.empty();
 		}
@@ -468,6 +502,15 @@ public class ResourceWebHandler implements WebHandler, InitializingBean {
 				.flatMap(resource -> this.transformerChain.transform(exchange, resource));
 	}
 
+	private String getResourcePath(ServerWebExchange exchange) {
+		PathPattern pattern = exchange.getRequiredAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE);
+		if (!pattern.hasPatternSyntax()) {
+			return pattern.getPatternString();
+		}
+		PathContainer pathWithinHandler = exchange.getRequiredAttribute(HandlerMapping.PATH_WITHIN_HANDLER_MAPPING_ATTRIBUTE);
+		return pathWithinHandler.value();
+	}
+
 	/**
 	 * Process the given resource path.
 	 * <p>The default implementation replaces:
@@ -478,7 +521,6 @@ public class ResourceWebHandler implements WebHandler, InitializingBean {
 	 * with a single "/" or "". For example {@code "  / // foo/bar"}
 	 * becomes {@code "/foo/bar"}.
 	 * </ul>
-	 * @since 3.2.12
 	 */
 	protected String processPath(String path) {
 		path = StringUtils.replace(path, "\\", "/");

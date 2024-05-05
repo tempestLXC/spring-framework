@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -72,13 +72,15 @@ import org.springframework.util.concurrent.ListenableFutureTask;
  * {@link org.springframework.scheduling.concurrent.ConcurrentTaskExecutor} adapter.
  *
  * @author Juergen Hoeller
+ * @author Rémy Guihard
+ * @author Sam Brannen
  * @since 2.0
  * @see org.springframework.core.task.TaskExecutor
  * @see java.util.concurrent.ThreadPoolExecutor
  * @see ThreadPoolExecutorFactoryBean
  * @see ConcurrentTaskExecutor
  */
-@SuppressWarnings("serial")
+@SuppressWarnings({"serial", "deprecation"})
 public class ThreadPoolTaskExecutor extends ExecutorConfigurationSupport
 		implements AsyncListenableTaskExecutor, SchedulingTaskExecutor {
 
@@ -95,6 +97,8 @@ public class ThreadPoolTaskExecutor extends ExecutorConfigurationSupport
 	private boolean allowCoreThreadTimeOut = false;
 
 	private boolean prestartAllCoreThreads = false;
+
+	private boolean strictEarlyShutdown = false;
 
 	@Nullable
 	private TaskDecorator taskDecorator;
@@ -155,7 +159,7 @@ public class ThreadPoolTaskExecutor extends ExecutorConfigurationSupport
 
 	/**
 	 * Set the ThreadPoolExecutor's keep-alive seconds.
-	 * Default is 60.
+	 * <p>Default is 60.
 	 * <p><b>This setting can be modified at runtime, for example through JMX.</b>
 	 */
 	public void setKeepAliveSeconds(int keepAliveSeconds) {
@@ -178,7 +182,7 @@ public class ThreadPoolTaskExecutor extends ExecutorConfigurationSupport
 
 	/**
 	 * Set the capacity for the ThreadPoolExecutor's BlockingQueue.
-	 * Default is {@code Integer.MAX_VALUE}.
+	 * <p>Default is {@code Integer.MAX_VALUE}.
 	 * <p>Any positive value will lead to a LinkedBlockingQueue instance;
 	 * any other value will lead to a SynchronousQueue instance.
 	 * @see java.util.concurrent.LinkedBlockingQueue
@@ -186,6 +190,15 @@ public class ThreadPoolTaskExecutor extends ExecutorConfigurationSupport
 	 */
 	public void setQueueCapacity(int queueCapacity) {
 		this.queueCapacity = queueCapacity;
+	}
+
+	/**
+	 * Return the capacity for the ThreadPoolExecutor's BlockingQueue.
+	 * @since 5.3.21
+	 * @see #setQueueCapacity(int)
+	 */
+	public int getQueueCapacity() {
+		return this.queueCapacity;
 	}
 
 	/**
@@ -201,12 +214,36 @@ public class ThreadPoolTaskExecutor extends ExecutorConfigurationSupport
 
 	/**
 	 * Specify whether to start all core threads, causing them to idly wait for work.
-	 * <p>Default is "false".
+	 * <p>Default is "false", starting threads and adding them to the pool on demand.
 	 * @since 5.3.14
 	 * @see java.util.concurrent.ThreadPoolExecutor#prestartAllCoreThreads
 	 */
 	public void setPrestartAllCoreThreads(boolean prestartAllCoreThreads) {
 		this.prestartAllCoreThreads = prestartAllCoreThreads;
+	}
+
+	/**
+	 * Specify whether to initiate an early shutdown signal on context close,
+	 * disposing all idle threads and rejecting further task submissions.
+	 * <p>By default, existing tasks will be allowed to complete within the
+	 * coordinated lifecycle stop phase in any case. This setting just controls
+	 * whether an explicit {@link ThreadPoolExecutor#shutdown()} call will be
+	 * triggered on context close, rejecting task submissions after that point.
+	 * <p>As of 6.1.4, the default is "false", leniently allowing for late tasks
+	 * to arrive after context close, still participating in the lifecycle stop
+	 * phase. Note that this differs from {@link #setAcceptTasksAfterContextClose}
+	 * which completely bypasses the coordinated lifecycle stop phase, with no
+	 * explicit waiting for the completion of existing tasks at all.
+	 * <p>Switch this to "true" for a strict early shutdown signal analogous to
+	 * the 6.1-established default behavior of {@link ThreadPoolTaskScheduler}.
+	 * Note that the related flags {@link #setAcceptTasksAfterContextClose} and
+	 * {@link #setWaitForTasksToCompleteOnShutdown} will override this setting,
+	 * leading to a late shutdown without a coordinated lifecycle stop phase.
+	 * @since 6.1.4
+	 * @see #initiateShutdown()
+	 */
+	public void setStrictEarlyShutdown(boolean defaultEarlyShutdown) {
+		this.strictEarlyShutdown = defaultEarlyShutdown;
 	}
 
 	/**
@@ -243,27 +280,29 @@ public class ThreadPoolTaskExecutor extends ExecutorConfigurationSupport
 
 		BlockingQueue<Runnable> queue = createQueue(this.queueCapacity);
 
-		ThreadPoolExecutor executor;
-		if (this.taskDecorator != null) {
-			executor = new ThreadPoolExecutor(
+		ThreadPoolExecutor executor = new ThreadPoolExecutor(
 					this.corePoolSize, this.maxPoolSize, this.keepAliveSeconds, TimeUnit.SECONDS,
 					queue, threadFactory, rejectedExecutionHandler) {
-				@Override
-				public void execute(Runnable command) {
-					Runnable decorated = taskDecorator.decorate(command);
+			@Override
+			public void execute(Runnable command) {
+				Runnable decorated = command;
+				if (taskDecorator != null) {
+					decorated = taskDecorator.decorate(command);
 					if (decorated != command) {
 						decoratedTaskMap.put(decorated, command);
 					}
-					super.execute(decorated);
 				}
-			};
-		}
-		else {
-			executor = new ThreadPoolExecutor(
-					this.corePoolSize, this.maxPoolSize, this.keepAliveSeconds, TimeUnit.SECONDS,
-					queue, threadFactory, rejectedExecutionHandler);
-
-		}
+				super.execute(decorated);
+			}
+			@Override
+			protected void beforeExecute(Thread thread, Runnable task) {
+				ThreadPoolTaskExecutor.this.beforeExecute(thread, task);
+			}
+			@Override
+			protected void afterExecute(Runnable task, Throwable ex) {
+				ThreadPoolTaskExecutor.this.afterExecute(task, ex);
+			}
+		};
 
 		if (this.allowCoreThreadTimeOut) {
 			executor.allowCoreThreadTimeOut(true);
@@ -279,7 +318,7 @@ public class ThreadPoolTaskExecutor extends ExecutorConfigurationSupport
 	/**
 	 * Create the BlockingQueue to use for the ThreadPoolExecutor.
 	 * <p>A LinkedBlockingQueue instance will be created for a positive
-	 * capacity value; a SynchronousQueue else.
+	 * capacity value; a SynchronousQueue otherwise.
 	 * @param queueCapacity the specified queue capacity
 	 * @return the BlockingQueue instance
 	 * @see java.util.concurrent.LinkedBlockingQueue
@@ -317,6 +356,19 @@ public class ThreadPoolTaskExecutor extends ExecutorConfigurationSupport
 	}
 
 	/**
+	 * Return the current queue size.
+	 * @since 5.3.21
+	 * @see java.util.concurrent.ThreadPoolExecutor#getQueue()
+	 */
+	public int getQueueSize() {
+		if (this.threadPoolExecutor == null) {
+			// Not initialized yet: assume no queued tasks.
+			return 0;
+		}
+		return this.threadPoolExecutor.getQueue().size();
+	}
+
+	/**
 	 * Return the number of currently active threads.
 	 * @see java.util.concurrent.ThreadPoolExecutor#getActiveCount()
 	 */
@@ -336,14 +388,8 @@ public class ThreadPoolTaskExecutor extends ExecutorConfigurationSupport
 			executor.execute(task);
 		}
 		catch (RejectedExecutionException ex) {
-			throw new TaskRejectedException("Executor [" + executor + "] did not accept task: " + task, ex);
+			throw new TaskRejectedException(executor, task, ex);
 		}
-	}
-
-	@Deprecated
-	@Override
-	public void execute(Runnable task, long startTimeout) {
-		execute(task);
 	}
 
 	@Override
@@ -353,7 +399,7 @@ public class ThreadPoolTaskExecutor extends ExecutorConfigurationSupport
 			return executor.submit(task);
 		}
 		catch (RejectedExecutionException ex) {
-			throw new TaskRejectedException("Executor [" + executor + "] did not accept task: " + task, ex);
+			throw new TaskRejectedException(executor, task, ex);
 		}
 	}
 
@@ -364,7 +410,7 @@ public class ThreadPoolTaskExecutor extends ExecutorConfigurationSupport
 			return executor.submit(task);
 		}
 		catch (RejectedExecutionException ex) {
-			throw new TaskRejectedException("Executor [" + executor + "] did not accept task: " + task, ex);
+			throw new TaskRejectedException(executor, task, ex);
 		}
 	}
 
@@ -377,7 +423,7 @@ public class ThreadPoolTaskExecutor extends ExecutorConfigurationSupport
 			return future;
 		}
 		catch (RejectedExecutionException ex) {
-			throw new TaskRejectedException("Executor [" + executor + "] did not accept task: " + task, ex);
+			throw new TaskRejectedException(executor, task, ex);
 		}
 	}
 
@@ -390,7 +436,7 @@ public class ThreadPoolTaskExecutor extends ExecutorConfigurationSupport
 			return future;
 		}
 		catch (RejectedExecutionException ex) {
-			throw new TaskRejectedException("Executor [" + executor + "] did not accept task: " + task, ex);
+			throw new TaskRejectedException(executor, task, ex);
 		}
 	}
 
@@ -399,8 +445,15 @@ public class ThreadPoolTaskExecutor extends ExecutorConfigurationSupport
 		super.cancelRemainingTask(task);
 		// Cancel associated user-level Future handle as well
 		Object original = this.decoratedTaskMap.get(task);
-		if (original instanceof Future) {
-			((Future<?>) original).cancel(true);
+		if (original instanceof Future<?> future) {
+			future.cancel(true);
+		}
+	}
+
+	@Override
+	protected void initiateEarlyShutdown() {
+		if (this.strictEarlyShutdown) {
+			super.initiateEarlyShutdown();
 		}
 	}
 

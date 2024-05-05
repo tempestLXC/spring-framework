@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,7 +29,6 @@ import org.springframework.lang.Nullable;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.MimeType;
 import org.springframework.util.ObjectUtils;
-import org.springframework.util.StringUtils;
 import org.springframework.web.HttpMediaTypeException;
 import org.springframework.web.HttpMediaTypeNotAcceptableException;
 import org.springframework.web.accept.ContentNegotiationManager;
@@ -84,7 +83,7 @@ public final class ProducesRequestCondition extends AbstractRequestCondition<Pro
 	 * @param produces expressions with syntax defined by {@link RequestMapping#produces()}
 	 * @param headers expressions with syntax defined by {@link RequestMapping#headers()}
 	 */
-	public ProducesRequestCondition(String[] produces, @Nullable String[] headers) {
+	public ProducesRequestCondition(@Nullable String[] produces, @Nullable String[] headers) {
 		this(produces, headers, null);
 	}
 
@@ -95,17 +94,17 @@ public final class ProducesRequestCondition extends AbstractRequestCondition<Pro
 	 * @param headers expressions with syntax defined by {@link RequestMapping#headers()}
 	 * @param manager used to determine requested media types
 	 */
-	public ProducesRequestCondition(String[] produces, @Nullable String[] headers,
+	public ProducesRequestCondition(@Nullable String[] produces, @Nullable String[] headers,
 			@Nullable ContentNegotiationManager manager) {
 
 		this.expressions = parseExpressions(produces, headers);
 		if (this.expressions.size() > 1) {
 			Collections.sort(this.expressions);
 		}
-		this.contentNegotiationManager = manager != null ? manager : DEFAULT_CONTENT_NEGOTIATION_MANAGER;
+		this.contentNegotiationManager = (manager != null ? manager : DEFAULT_CONTENT_NEGOTIATION_MANAGER);
 	}
 
-	private List<ProduceMediaTypeExpression> parseExpressions(String[] produces, @Nullable String[] headers) {
+	private List<ProduceMediaTypeExpression> parseExpressions(@Nullable String[] produces, @Nullable String[] headers) {
 		Set<ProduceMediaTypeExpression> result = null;
 		if (!ObjectUtils.isEmpty(headers)) {
 			for (String header : headers) {
@@ -255,6 +254,9 @@ public final class ProducesRequestCondition extends AbstractRequestCondition<Pro
 	 */
 	@Override
 	public int compareTo(ProducesRequestCondition other, HttpServletRequest request) {
+		if (this.expressions.isEmpty() && other.expressions.isEmpty()) {
+			return 0;
+		}
 		try {
 			List<MediaType> acceptedMediaTypes = getAcceptedMediaTypes(request);
 			for (MediaType acceptedMediaType : acceptedMediaTypes) {
@@ -372,17 +374,6 @@ public final class ProducesRequestCondition extends AbstractRequestCondition<Pro
 				}
 			}
 			return false;
-		}
-
-		private boolean matchParameters(MediaType acceptedMediaType) {
-			for (String name : getMediaType().getParameters().keySet()) {
-				String s1 = getMediaType().getParameter(name);
-				String s2 = acceptedMediaType.getParameter(name);
-				if (StringUtils.hasText(s1) && StringUtils.hasText(s2) && !s1.equalsIgnoreCase(s2)) {
-					return false;
-				}
-			}
-			return true;
 		}
 	}
 

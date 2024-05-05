@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -43,7 +43,6 @@ import org.springframework.beans.factory.support.DefaultListableBeanFactory;
 import org.springframework.beans.factory.support.RootBeanDefinition;
 import org.springframework.beans.factory.xml.XmlBeanDefinitionReader;
 import org.springframework.context.annotation.ConfigurationCondition.ConfigurationPhase;
-import org.springframework.core.SpringProperties;
 import org.springframework.core.annotation.AnnotationAttributes;
 import org.springframework.core.env.Environment;
 import org.springframework.core.io.Resource;
@@ -54,6 +53,7 @@ import org.springframework.core.type.StandardAnnotationMetadata;
 import org.springframework.core.type.StandardMethodMetadata;
 import org.springframework.lang.NonNull;
 import org.springframework.util.Assert;
+import org.springframework.util.ClassUtils;
 import org.springframework.util.StringUtils;
 
 /**
@@ -77,13 +77,6 @@ class ConfigurationClassBeanDefinitionReader {
 	private static final Log logger = LogFactory.getLog(ConfigurationClassBeanDefinitionReader.class);
 
 	private static final ScopeMetadataResolver scopeMetadataResolver = new AnnotationScopeMetadataResolver();
-
-	/**
-	 * Boolean flag controlled by a {@code spring.xml.ignore} system property that instructs Spring to
-	 * ignore XML, i.e. to not initialize the XML-related infrastructure.
-	 * <p>The default is "false".
-	 */
-	private static final boolean shouldIgnoreXml = SpringProperties.getFlag("spring.xml.ignore");
 
 	private final BeanDefinitionRegistry registry;
 
@@ -237,8 +230,12 @@ class ConfigurationClassBeanDefinitionReader {
 			beanDef.setUniqueFactoryMethodName(methodName);
 		}
 
-		if (metadata instanceof StandardMethodMetadata sam) {
-			beanDef.setResolvedFactoryMethod(sam.getIntrospectedMethod());
+		if (metadata instanceof StandardMethodMetadata smm &&
+				configClass.getMetadata() instanceof StandardAnnotationMetadata sam) {
+			Method method = ClassUtils.getMostSpecificMethod(smm.getIntrospectedMethod(), sam.getIntrospectedClass());
+			if (method == smm.getIntrospectedMethod()) {
+				beanDef.setResolvedFactoryMethod(method);
+			}
 		}
 
 		beanDef.setAutowireMode(AbstractBeanDefinition.AUTOWIRE_CONSTRUCTOR);
@@ -247,6 +244,16 @@ class ConfigurationClassBeanDefinitionReader {
 		boolean autowireCandidate = bean.getBoolean("autowireCandidate");
 		if (!autowireCandidate) {
 			beanDef.setAutowireCandidate(false);
+		}
+
+		boolean defaultCandidate = bean.getBoolean("defaultCandidate");
+		if (!defaultCandidate) {
+			beanDef.setDefaultCandidate(false);
+		}
+
+		Bean.Bootstrap instantiation = bean.getEnum("bootstrap");
+		if (instantiation == Bean.Bootstrap.BACKGROUND) {
+			beanDef.setBackgroundInit(true);
 		}
 
 		String initMethodName = bean.getString("initMethod");
@@ -309,8 +316,12 @@ class ConfigurationClassBeanDefinitionReader {
 		}
 
 		// A bean definition resulting from a component scan can be silently overridden
-		// by an @Bean method, as of 4.2...
-		if (existingBeanDef instanceof ScannedGenericBeanDefinition) {
+		// by an @Bean method - and as of 6.1, even when general overriding is disabled
+		// as long as the bean class is the same.
+		if (existingBeanDef instanceof ScannedGenericBeanDefinition scannedBeanDef) {
+			if (beanMethod.getMetadata().getReturnTypeName().equals(scannedBeanDef.getBeanClassName())) {
+				this.registry.removeBeanDefinition(beanName);
+			}
 			return false;
 		}
 
@@ -322,8 +333,7 @@ class ConfigurationClassBeanDefinitionReader {
 
 		// At this point, it's a top-level override (probably XML), just having been parsed
 		// before configuration class processing kicks in...
-		if (this.registry instanceof DefaultListableBeanFactory dlbf &&
-				!dlbf.isAllowBeanDefinitionOverriding()) {
+		if (this.registry instanceof DefaultListableBeanFactory dlbf && !dlbf.isBeanDefinitionOverridable(beanName)) {
 			throw new BeanDefinitionStoreException(beanMethod.getConfigurationClass().getResource().getDescription(),
 					beanName, "@Bean definition illegally overridden by existing bean definition: " + existingBeanDef);
 		}
@@ -346,9 +356,6 @@ class ConfigurationClassBeanDefinitionReader {
 				if (StringUtils.endsWithIgnoreCase(resource, ".groovy")) {
 					// When clearly asking for Groovy, that's what they'll get...
 					readerClass = GroovyBeanDefinitionReader.class;
-				}
-				else if (shouldIgnoreXml) {
-					throw new UnsupportedOperationException("XML support disabled");
 				}
 				else {
 					// Primarily ".xml" files but for any other extension as well
@@ -412,6 +419,7 @@ class ConfigurationClassBeanDefinitionReader {
 
 		public ConfigurationClassBeanDefinition(RootBeanDefinition original,
 				ConfigurationClass configClass, MethodMetadata beanMethodMetadata, String derivedBeanName) {
+
 			super(original);
 			this.annotationMetadata = configClass.getMetadata();
 			this.factoryMethodMetadata = beanMethodMetadata;

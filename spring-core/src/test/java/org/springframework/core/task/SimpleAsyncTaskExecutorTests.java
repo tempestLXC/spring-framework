@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,22 +32,23 @@ import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
 class SimpleAsyncTaskExecutorTests {
 
 	@Test
-	void cannotExecuteWhenConcurrencyIsSwitchedOff() throws Exception {
-		SimpleAsyncTaskExecutor executor = new SimpleAsyncTaskExecutor();
-		executor.setConcurrencyLimit(ConcurrencyThrottleSupport.NO_CONCURRENCY);
-		assertThat(executor.isThrottleActive()).isTrue();
-		assertThatIllegalStateException().isThrownBy(() ->
-				executor.execute(new NoOpRunnable()));
+	void cannotExecuteWhenConcurrencyIsSwitchedOff() {
+		try (SimpleAsyncTaskExecutor executor = new SimpleAsyncTaskExecutor()) {
+			executor.setConcurrencyLimit(ConcurrencyThrottleSupport.NO_CONCURRENCY);
+			assertThat(executor.isThrottleActive()).isTrue();
+			assertThatIllegalStateException().isThrownBy(() -> executor.execute(new NoOpRunnable()));
+		}
 	}
 
 	@Test
-	void throttleIsNotActiveByDefault() throws Exception {
-		SimpleAsyncTaskExecutor executor = new SimpleAsyncTaskExecutor();
-		assertThat(executor.isThrottleActive()).as("Concurrency throttle must not default to being active (on)").isFalse();
+	void throttleIsNotActiveByDefault() {
+		try (SimpleAsyncTaskExecutor executor = new SimpleAsyncTaskExecutor()) {
+			assertThat(executor.isThrottleActive()).as("Concurrency throttle must not default to being active (on)").isFalse();
+		}
 	}
 
 	@Test
-	void threadNameGetsSetCorrectly() throws Exception {
+	void threadNameGetsSetCorrectly() {
 		final String customPrefix = "chankPop#";
 		final Object monitor = new Object();
 		SimpleAsyncTaskExecutor executor = new SimpleAsyncTaskExecutor(customPrefix);
@@ -57,7 +58,7 @@ class SimpleAsyncTaskExecutorTests {
 	}
 
 	@Test
-	void threadFactoryOverridesDefaults() throws Exception {
+	void threadFactoryOverridesDefaults() {
 		final Object monitor = new Object();
 		SimpleAsyncTaskExecutor executor = new SimpleAsyncTaskExecutor(runnable -> new Thread(runnable, "test"));
 		ThreadNameHarvester task = new ThreadNameHarvester(monitor);
@@ -66,9 +67,10 @@ class SimpleAsyncTaskExecutorTests {
 	}
 
 	@Test
-	void throwsExceptionWhenSuppliedWithNullRunnable() throws Exception {
-		assertThatIllegalArgumentException().isThrownBy(() ->
-				new SimpleAsyncTaskExecutor().execute(null));
+	void throwsExceptionWhenSuppliedWithNullRunnable() {
+		try (SimpleAsyncTaskExecutor executor = new SimpleAsyncTaskExecutor()) {
+			assertThatIllegalArgumentException().isThrownBy(() -> executor.execute(null));
+		}
 	}
 
 	private void executeAndWait(SimpleAsyncTaskExecutor executor, Runnable task, Object monitor) {
@@ -92,7 +94,7 @@ class SimpleAsyncTaskExecutorTests {
 	}
 
 
-	private static abstract class AbstractNotifyingRunnable implements Runnable {
+	private abstract static class AbstractNotifyingRunnable implements Runnable {
 
 		private final Object monitor;
 

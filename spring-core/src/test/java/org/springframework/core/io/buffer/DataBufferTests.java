@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,8 +25,10 @@ import java.util.Arrays;
 import org.springframework.core.testfixture.io.buffer.AbstractDataBufferAllocatingTests;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatException;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
+import static org.junit.jupiter.api.Assumptions.assumeFalse;
 
 /**
  * @author Arjen Poutsma
@@ -83,8 +85,7 @@ class DataBufferTests extends AbstractDataBufferAllocatingTests {
 
 		DataBuffer buffer = createDataBuffer(1);
 		try {
-			assertThatExceptionOfType(IndexOutOfBoundsException.class).isThrownBy(() ->
-					buffer.readPosition(-1));
+			assertThatExceptionOfType(IndexOutOfBoundsException.class).isThrownBy(() -> buffer.readPosition(-1));
 		}
 		finally {
 			release(buffer);
@@ -97,8 +98,7 @@ class DataBufferTests extends AbstractDataBufferAllocatingTests {
 
 		DataBuffer buffer = createDataBuffer(1);
 		try {
-			assertThatExceptionOfType(IndexOutOfBoundsException.class).isThrownBy(() ->
-					buffer.readPosition(1));
+			assertThatExceptionOfType(IndexOutOfBoundsException.class).isThrownBy(() -> buffer.readPosition(1));
 		}
 		finally {
 			release(buffer);
@@ -113,8 +113,7 @@ class DataBufferTests extends AbstractDataBufferAllocatingTests {
 		try {
 			buffer.write((byte) 'a');
 			buffer.read();
-			assertThatExceptionOfType(IndexOutOfBoundsException.class).isThrownBy(() ->
-					buffer.writePosition(0));
+			assertThatExceptionOfType(IndexOutOfBoundsException.class).isThrownBy(() -> buffer.writePosition(0));
 		}
 		finally {
 			release(buffer);
@@ -127,8 +126,7 @@ class DataBufferTests extends AbstractDataBufferAllocatingTests {
 
 		DataBuffer buffer = createDataBuffer(1);
 		try {
-			assertThatExceptionOfType(IndexOutOfBoundsException.class).isThrownBy(() ->
-					buffer.writePosition(2));
+			assertThatExceptionOfType(IndexOutOfBoundsException.class).isThrownBy(() -> buffer.writePosition(2));
 		}
 		finally {
 			release(buffer);
@@ -320,6 +318,9 @@ class DataBufferTests extends AbstractDataBufferAllocatingTests {
 		assertThat(result).isEqualTo((byte) 'b');
 		assertThat(inputStream.available()).isEqualTo(3);
 
+		assertThat(inputStream.markSupported()).isTrue();
+		inputStream.mark(2);
+
 		byte[] bytes = new byte[2];
 		int len = inputStream.read(bytes);
 		assertThat(len).isEqualTo(2);
@@ -334,6 +335,12 @@ class DataBufferTests extends AbstractDataBufferAllocatingTests {
 
 		assertThat(inputStream.read()).isEqualTo(-1);
 		assertThat(inputStream.read(bytes)).isEqualTo(-1);
+
+		inputStream.reset();
+		bytes = new byte[3];
+		len = inputStream.read(bytes);
+		assertThat(len).isEqualTo(3);
+		assertThat(bytes).containsExactly('c', 'd', 'e');
 
 		release(buffer);
 	}
@@ -385,12 +392,13 @@ class DataBufferTests extends AbstractDataBufferAllocatingTests {
 		assertThat(buffer.capacity()).isEqualTo(1);
 		buffer.write((byte) 'b');
 
-		assertThat(buffer.capacity() > 1).isTrue();
+		assertThat(buffer.capacity()).isGreaterThan(1);
 
 		release(buffer);
 	}
 
 	@ParameterizedDataBufferAllocatingTest
+	@SuppressWarnings("deprecation")
 	void increaseCapacity(DataBufferFactory bufferFactory) {
 		super.bufferFactory = bufferFactory;
 
@@ -404,7 +412,11 @@ class DataBufferTests extends AbstractDataBufferAllocatingTests {
 	}
 
 	@ParameterizedDataBufferAllocatingTest
+	@SuppressWarnings("deprecation")
 	void decreaseCapacityLowReadPosition(DataBufferFactory bufferFactory) {
+		assumeFalse(bufferFactory instanceof Netty5DataBufferFactory,
+				"Netty 5 does not support decreasing the capacity");
+
 		super.bufferFactory = bufferFactory;
 
 		DataBuffer buffer = createDataBuffer(2);
@@ -416,7 +428,11 @@ class DataBufferTests extends AbstractDataBufferAllocatingTests {
 	}
 
 	@ParameterizedDataBufferAllocatingTest
+	@SuppressWarnings("deprecation")
 	void decreaseCapacityHighReadPosition(DataBufferFactory bufferFactory) {
+		assumeFalse(bufferFactory instanceof Netty5DataBufferFactory,
+				"Netty 5 does not support decreasing the capacity");
+
 		super.bufferFactory = bufferFactory;
 
 		DataBuffer buffer = createDataBuffer(2);
@@ -429,13 +445,13 @@ class DataBufferTests extends AbstractDataBufferAllocatingTests {
 	}
 
 	@ParameterizedDataBufferAllocatingTest
+	@SuppressWarnings("deprecation")
 	void capacityLessThanZero(DataBufferFactory bufferFactory) {
 		super.bufferFactory = bufferFactory;
 
 		DataBuffer buffer = createDataBuffer(1);
 		try {
-			assertThatIllegalArgumentException().isThrownBy(() ->
-					buffer.capacity(-1));
+			assertThatIllegalArgumentException().isThrownBy(() -> buffer.capacity(-1));
 		}
 		finally {
 			release(buffer);
@@ -495,6 +511,7 @@ class DataBufferTests extends AbstractDataBufferAllocatingTests {
 	}
 
 	@ParameterizedDataBufferAllocatingTest
+	@SuppressWarnings("deprecation")
 	void asByteBuffer(DataBufferFactory bufferFactory) {
 		super.bufferFactory = bufferFactory;
 
@@ -522,8 +539,14 @@ class DataBufferTests extends AbstractDataBufferAllocatingTests {
 		DataBuffer buffer = createDataBuffer(3);
 		buffer.write(new byte[]{'a', 'b'});
 
+		@SuppressWarnings("deprecation")
 		ByteBuffer result = buffer.asByteBuffer(1, 2);
 		assertThat(result.capacity()).isEqualTo(2);
+
+		assumeFalse(bufferFactory instanceof Netty5DataBufferFactory, () -> {
+			DataBufferUtils.release(buffer);
+			return "Netty 5 does share the internal buffer";
+		});
 
 		buffer.write((byte) 'c');
 		assertThat(result.remaining()).isEqualTo(2);
@@ -536,7 +559,11 @@ class DataBufferTests extends AbstractDataBufferAllocatingTests {
 	}
 
 	@ParameterizedDataBufferAllocatingTest
+	@SuppressWarnings("deprecation")
 	void byteBufferContainsDataBufferChanges(DataBufferFactory bufferFactory) {
+		assumeFalse(bufferFactory instanceof Netty5DataBufferFactory,
+				"Netty 5 does not support sharing data between buffers");
+
 		super.bufferFactory = bufferFactory;
 
 		DataBuffer dataBuffer = createDataBuffer(1);
@@ -552,7 +579,11 @@ class DataBufferTests extends AbstractDataBufferAllocatingTests {
 	}
 
 	@ParameterizedDataBufferAllocatingTest
+	@SuppressWarnings("deprecation")
 	void dataBufferContainsByteBufferChanges(DataBufferFactory bufferFactory) {
+		assumeFalse(bufferFactory instanceof Netty5DataBufferFactory,
+				"Netty 5 does not support sharing data between buffers");
+
 		super.bufferFactory = bufferFactory;
 
 		DataBuffer dataBuffer = createDataBuffer(1);
@@ -568,6 +599,7 @@ class DataBufferTests extends AbstractDataBufferAllocatingTests {
 	}
 
 	@ParameterizedDataBufferAllocatingTest
+	@SuppressWarnings("deprecation")
 	void emptyAsByteBuffer(DataBufferFactory bufferFactory) {
 		super.bufferFactory = bufferFactory;
 
@@ -577,6 +609,153 @@ class DataBufferTests extends AbstractDataBufferAllocatingTests {
 		assertThat(result.capacity()).isEqualTo(0);
 
 		release(buffer);
+	}
+
+
+	@ParameterizedDataBufferAllocatingTest
+	void toByteBuffer(DataBufferFactory bufferFactory) {
+		super.bufferFactory = bufferFactory;
+
+		DataBuffer buffer = createDataBuffer(4);
+		buffer.write(new byte[]{'a', 'b', 'c'});
+		buffer.read(); // skip a
+
+		@SuppressWarnings("deprecation")
+		ByteBuffer result = buffer.toByteBuffer();
+		assertThat(result.capacity()).isEqualTo(2);
+		assertThat(result.remaining()).isEqualTo(2);
+
+		byte[] resultBytes = new byte[2];
+		result.get(resultBytes);
+		assertThat(resultBytes).isEqualTo(new byte[]{'b', 'c'});
+
+		release(buffer);
+	}
+
+	@ParameterizedDataBufferAllocatingTest
+	void toByteBufferIndexLength(DataBufferFactory bufferFactory) {
+		super.bufferFactory = bufferFactory;
+
+		DataBuffer buffer = createDataBuffer(3);
+		buffer.write(new byte[]{'a', 'b', 'c'});
+
+		@SuppressWarnings("deprecation")
+		ByteBuffer result = buffer.toByteBuffer(1, 2);
+		assertThat(result.capacity()).isEqualTo(2);
+		assertThat(result.remaining()).isEqualTo(2);
+
+		byte[] resultBytes = new byte[2];
+		result.get(resultBytes);
+		assertThat(resultBytes).isEqualTo(new byte[]{'b', 'c'});
+
+		release(buffer);
+	}
+
+	@ParameterizedDataBufferAllocatingTest
+	void toByteBufferDestination(DataBufferFactory bufferFactory) {
+		super.bufferFactory = bufferFactory;
+
+		DataBuffer buffer = createDataBuffer(4);
+		buffer.write(new byte[]{'a', 'b', 'c'});
+
+		ByteBuffer byteBuffer = createByteBuffer(2);
+		buffer.toByteBuffer(1, byteBuffer, 0, 2);
+		assertThat(byteBuffer.capacity()).isEqualTo(2);
+		assertThat(byteBuffer.remaining()).isEqualTo(2);
+
+		byte[] resultBytes = new byte[2];
+		byteBuffer.get(resultBytes);
+		assertThat(resultBytes).isEqualTo(new byte[]{'b', 'c'});
+
+		assertThatExceptionOfType(IndexOutOfBoundsException.class)
+				.isThrownBy(() -> buffer.toByteBuffer(0, byteBuffer, 0, 3));
+
+		release(buffer);
+	}
+
+	@ParameterizedDataBufferAllocatingTest
+	void readableByteBuffers(DataBufferFactory bufferFactory) {
+		super.bufferFactory = bufferFactory;
+
+		DataBuffer dataBuffer = this.bufferFactory.allocateBuffer(3);
+		dataBuffer.write("abc".getBytes(StandardCharsets.UTF_8));
+		dataBuffer.readPosition(1);
+		dataBuffer.writePosition(2);
+
+
+		byte[] result = new byte[1];
+		try (var iterator = dataBuffer.readableByteBuffers()) {
+			assertThat(iterator).hasNext();
+			int i = 0;
+			while (iterator.hasNext()) {
+				ByteBuffer byteBuffer = iterator.next();
+				assertThat(byteBuffer.position()).isEqualTo(0);
+				assertThat(byteBuffer.limit()).isEqualTo(1);
+				assertThat(byteBuffer.capacity()).isEqualTo(1);
+				assertThat(byteBuffer.remaining()).isEqualTo(1);
+
+				byteBuffer.get(result, i, 1);
+
+				assertThat(iterator).isExhausted();
+			}
+		}
+
+		assertThat(result).containsExactly('b');
+
+		release(dataBuffer);
+	}
+
+	@ParameterizedDataBufferAllocatingTest
+	void readableByteBuffersJoined(DataBufferFactory bufferFactory) {
+		super.bufferFactory = bufferFactory;
+
+		DataBuffer dataBuffer = this.bufferFactory.join(Arrays.asList(stringBuffer("a"),
+				stringBuffer("b"), stringBuffer("c")));
+
+		byte[] result = new byte[3];
+		try (var iterator = dataBuffer.readableByteBuffers()) {
+			assertThat(iterator).hasNext();
+			int i = 0;
+			while (iterator.hasNext()) {
+				ByteBuffer byteBuffer = iterator.next();
+				int len = byteBuffer.remaining();
+				byteBuffer.get(result, i, len);
+				i += len;
+				assertThatException().isThrownBy(() -> byteBuffer.put((byte) 'd'));
+			}
+		}
+
+		assertThat(result).containsExactly('a', 'b', 'c');
+
+		release(dataBuffer);
+	}
+
+	@ParameterizedDataBufferAllocatingTest
+	void writableByteBuffers(DataBufferFactory bufferFactory) {
+		super.bufferFactory = bufferFactory;
+
+		DataBuffer dataBuffer = this.bufferFactory.allocateBuffer(3);
+		dataBuffer.write("ab".getBytes(StandardCharsets.UTF_8));
+		dataBuffer.readPosition(1);
+
+		try (DataBuffer.ByteBufferIterator iterator = dataBuffer.writableByteBuffers()) {
+			assertThat(iterator).hasNext();
+			ByteBuffer byteBuffer = iterator.next();
+			assertThat(byteBuffer.position()).isEqualTo(0);
+			assertThat(byteBuffer.limit()).isEqualTo(1);
+			assertThat(byteBuffer.capacity()).isEqualTo(1);
+			assertThat(byteBuffer.remaining()).isEqualTo(1);
+
+			byteBuffer.put((byte) 'c');
+			dataBuffer.writePosition(3);
+
+			assertThat(iterator).isExhausted();
+		}
+		byte[] result = new byte[2];
+		dataBuffer.read(result);
+		assertThat(result).containsExactly('b', 'c');
+
+		release(dataBuffer);
 	}
 
 	@ParameterizedDataBufferAllocatingTest
@@ -633,6 +812,7 @@ class DataBufferTests extends AbstractDataBufferAllocatingTests {
 	}
 
 	@ParameterizedDataBufferAllocatingTest
+	@SuppressWarnings("deprecation")
 	void slice(DataBufferFactory bufferFactory) {
 		super.bufferFactory = bufferFactory;
 
@@ -641,8 +821,6 @@ class DataBufferTests extends AbstractDataBufferAllocatingTests {
 
 		DataBuffer slice = buffer.slice(1, 2);
 		assertThat(slice.readableByteCount()).isEqualTo(2);
-		assertThatExceptionOfType(Exception.class).isThrownBy(() ->
-				slice.write((byte) 0));
 		buffer.write((byte) 'c');
 
 		assertThat(buffer.readableByteCount()).isEqualTo(3);
@@ -655,14 +833,18 @@ class DataBufferTests extends AbstractDataBufferAllocatingTests {
 		result = new byte[2];
 		slice.read(result);
 
-		assertThat(result).isEqualTo(new byte[]{'b', 'c'});
-
-
+		if (!(bufferFactory instanceof Netty5DataBufferFactory)) {
+			assertThat(result).isEqualTo(new byte[]{'b', 'c'});
+		}
 		release(buffer);
 	}
 
 	@ParameterizedDataBufferAllocatingTest
+	@SuppressWarnings("deprecation")
 	void retainedSlice(DataBufferFactory bufferFactory) {
+		assumeFalse(bufferFactory instanceof Netty5DataBufferFactory,
+				"Netty 5 does not support retainedSlice");
+
 		super.bufferFactory = bufferFactory;
 
 		DataBuffer buffer = createDataBuffer(3);
@@ -670,8 +852,6 @@ class DataBufferTests extends AbstractDataBufferAllocatingTests {
 
 		DataBuffer slice = buffer.retainedSlice(1, 2);
 		assertThat(slice.readableByteCount()).isEqualTo(2);
-		assertThatExceptionOfType(Exception.class).isThrownBy(() ->
-				slice.write((byte) 0));
 		buffer.write((byte) 'c');
 
 		assertThat(buffer.readableByteCount()).isEqualTo(3);
@@ -686,11 +866,11 @@ class DataBufferTests extends AbstractDataBufferAllocatingTests {
 
 		assertThat(result).isEqualTo(new byte[]{'b', 'c'});
 
-
 		release(buffer, slice);
 	}
 
 	@ParameterizedDataBufferAllocatingTest
+	@SuppressWarnings("deprecation")
 	void spr16351(DataBufferFactory bufferFactory) {
 		super.bufferFactory = bufferFactory;
 
@@ -707,7 +887,61 @@ class DataBufferTests extends AbstractDataBufferAllocatingTests {
 
 		assertThat(result).isEqualTo(bytes);
 
+		if (bufferFactory instanceof Netty5DataBufferFactory) {
+			release(slice);
+		}
 		release(buffer);
+	}
+
+	@ParameterizedDataBufferAllocatingTest
+	void split(DataBufferFactory bufferFactory) {
+		super.bufferFactory = bufferFactory;
+
+		DataBuffer buffer = createDataBuffer(3);
+		buffer.write(new byte[]{'a', 'b'});
+
+		assertThatException().isThrownBy(() -> buffer.split(-1));
+		assertThatException().isThrownBy(() -> buffer.split(4));
+
+		DataBuffer split = buffer.split(1);
+
+		assertThat(split.readPosition()).isEqualTo(0);
+		assertThat(split.writePosition()).isEqualTo(1);
+		assertThat(split.capacity()).isEqualTo(1);
+		assertThat(split.readableByteCount()).isEqualTo(1);
+		byte[] bytes = new byte[1];
+		split.read(bytes);
+		assertThat(bytes).containsExactly('a');
+
+		assertThat(buffer.readPosition()).isEqualTo(0);
+		assertThat(buffer.writePosition()).isEqualTo(1);
+		assertThat(buffer.capacity()).isEqualTo(2);
+
+		buffer.write((byte) 'c');
+		assertThat(buffer.readableByteCount()).isEqualTo(2);
+		bytes = new byte[2];
+		buffer.read(bytes);
+
+		assertThat(bytes).isEqualTo(new byte[]{'b', 'c'});
+
+		DataBuffer buffer2 = createDataBuffer(1);
+		buffer2.write(new byte[]{'a'});
+		DataBuffer split2 = buffer2.split(1);
+
+		assertThat(split2.readPosition()).isEqualTo(0);
+		assertThat(split2.writePosition()).isEqualTo(1);
+		assertThat(split2.capacity()).isEqualTo(1);
+		assertThat(split2.readableByteCount()).isEqualTo(1);
+		bytes = new byte[1];
+		split2.read(bytes);
+		assertThat(bytes).containsExactly('a');
+
+		assertThat(buffer2.readPosition()).isEqualTo(0);
+		assertThat(buffer2.writePosition()).isEqualTo(0);
+		assertThat(buffer2.capacity()).isEqualTo(0);
+		assertThat(buffer.readableByteCount()).isEqualTo(0);
+
+		release(buffer, buffer2, split, split2);
 	}
 
 	@ParameterizedDataBufferAllocatingTest
@@ -720,7 +954,7 @@ class DataBufferTests extends AbstractDataBufferAllocatingTests {
 		byte[] bytes = new byte[3];
 		composite.read(bytes);
 
-		assertThat(bytes).isEqualTo(new byte[] {'a','b','c'});
+		assertThat(bytes).isEqualTo(new byte[]{'a', 'b', 'c'});
 
 		release(composite);
 	}
@@ -734,11 +968,36 @@ class DataBufferTests extends AbstractDataBufferAllocatingTests {
 		assertThat(buffer.getByte(0)).isEqualTo((byte) 'a');
 		assertThat(buffer.getByte(1)).isEqualTo((byte) 'b');
 		assertThat(buffer.getByte(2)).isEqualTo((byte) 'c');
-		assertThatExceptionOfType(IndexOutOfBoundsException.class).isThrownBy(() ->
-				buffer.getByte(-1));
+		assertThatExceptionOfType(IndexOutOfBoundsException.class).isThrownBy(() -> buffer.getByte(-1));
+		assertThatExceptionOfType(IndexOutOfBoundsException.class).isThrownBy(() -> buffer.getByte(3));
 
-		assertThatExceptionOfType(IndexOutOfBoundsException.class).isThrownBy(() ->
-			buffer.getByte(3));
+		release(buffer);
+	}
+
+	@ParameterizedDataBufferAllocatingTest // gh-31605
+	void shouldHonorSourceBuffersReadPosition(DataBufferFactory bufferFactory) {
+		DataBuffer dataBuffer = bufferFactory.wrap("ab".getBytes(StandardCharsets.UTF_8));
+		dataBuffer.readPosition(1);
+
+		ByteBuffer byteBuffer = ByteBuffer.allocate(dataBuffer.readableByteCount());
+		dataBuffer.toByteBuffer(byteBuffer);
+
+		assertThat(StandardCharsets.UTF_8.decode(byteBuffer).toString()).isEqualTo("b");
+	}
+
+	@ParameterizedDataBufferAllocatingTest // gh-31873
+	void repeatedWrites(DataBufferFactory bufferFactory) {
+		super.bufferFactory = bufferFactory;
+
+		DataBuffer buffer = bufferFactory.allocateBuffer(256);
+		String name = "Müller";
+		int repeatCount = 19;
+		for (int i = 0; i < repeatCount; i++) {
+			buffer.write(name, StandardCharsets.UTF_8);
+		}
+		String result = buffer.toString(StandardCharsets.UTF_8);
+		String expected = name.repeat(repeatCount);
+		assertThat(result).isEqualTo(expected);
 
 		release(buffer);
 	}

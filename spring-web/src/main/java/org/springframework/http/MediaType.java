@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -45,6 +45,7 @@ import org.springframework.util.StringUtils;
  * @author Sebastien Deleuze
  * @author Kazuki Shimizu
  * @author Sam Brannen
+ * @author Hyoungjune Kim
  * @since 3.0
  * @see <a href="https://tools.ietf.org/html/rfc7231#section-3.1.1.1">
  *     HTTP 1.1: Semantics and Content, section 3.1.1.1</a>
@@ -94,6 +95,37 @@ public class MediaType extends MimeType implements Serializable {
 	 * A String equivalent of {@link MediaType#APPLICATION_FORM_URLENCODED}.
 	 */
 	public static final String APPLICATION_FORM_URLENCODED_VALUE = "application/x-www-form-urlencoded";
+
+	/**
+	 * Public constant media type for {@code application/graphql+json}.
+	 * @since 5.3.19
+	 * @see <a href="https://github.com/graphql/graphql-over-http/pull/215">GraphQL over HTTP spec change</a>
+	 * @deprecated as of 6.0.3, in favor of {@link MediaType#APPLICATION_GRAPHQL_RESPONSE}
+	 */
+	@Deprecated(since = "6.0.3", forRemoval = true)
+	public static final MediaType APPLICATION_GRAPHQL;
+
+	/**
+	 * A String equivalent of {@link MediaType#APPLICATION_GRAPHQL}.
+	 * @since 5.3.19
+	 * @deprecated as of 6.0.3, in favor of {@link MediaType#APPLICATION_GRAPHQL_RESPONSE_VALUE}
+	 */
+	@Deprecated(since = "6.0.3", forRemoval = true)
+	public static final String APPLICATION_GRAPHQL_VALUE = "application/graphql+json";
+
+	/**
+	 * Public constant media type for {@code application/graphql-response+json}.
+	 * @since 6.0.3
+	 * @see <a href="https://github.com/graphql/graphql-over-http">GraphQL over HTTP spec</a>
+	 */
+	public static final MediaType APPLICATION_GRAPHQL_RESPONSE;
+
+	/**
+	 * A String equivalent of {@link MediaType#APPLICATION_GRAPHQL_RESPONSE}.
+	 * @since 6.0.3
+	 */
+	public static final String APPLICATION_GRAPHQL_RESPONSE_VALUE = "application/graphql-response+json";
+
 
 	/**
 	 * Public constant media type for {@code application/json}.
@@ -205,6 +237,18 @@ public class MediaType extends MimeType implements Serializable {
 	public static final String APPLICATION_PROBLEM_XML_VALUE = "application/problem+xml";
 
 	/**
+	 * Public constant media type for {@code application/x-protobuf}.
+	 * @since 6.0
+	 */
+	public static final MediaType APPLICATION_PROTOBUF;
+
+	/**
+	 * A String equivalent of {@link MediaType#APPLICATION_PROTOBUF}.
+	 * @since 6.0
+	 */
+	public static final String APPLICATION_PROTOBUF_VALUE = "application/x-protobuf";
+
+	/**
 	 * Public constant media type for {@code application/rss+xml}.
 	 * @since 4.3.6
 	 */
@@ -267,6 +311,18 @@ public class MediaType extends MimeType implements Serializable {
 	 * A String equivalent of {@link MediaType#APPLICATION_XML}.
 	 */
 	public static final String APPLICATION_XML_VALUE = "application/xml";
+
+	/**
+	 * Public constant media type for {@code application/yaml}.
+	 * @since 6.2
+	 */
+	public static final MediaType APPLICATION_YAML;
+
+	/**
+	 * A String equivalent of {@link MediaType#APPLICATION_YAML}.
+	 * @since 6.2
+	 */
+	public static final String APPLICATION_YAML_VALUE = "application/yaml";
 
 	/**
 	 * Public constant media type for {@code image/gif}.
@@ -392,10 +448,12 @@ public class MediaType extends MimeType implements Serializable {
 
 	static {
 		// Not using "valueOf' to avoid static init cost
-		ALL = new MediaType("*", "*");
+		ALL = new MediaType(MimeType.WILDCARD_TYPE, MimeType.WILDCARD_TYPE);
 		APPLICATION_ATOM_XML = new MediaType("application", "atom+xml");
 		APPLICATION_CBOR = new MediaType("application", "cbor");
 		APPLICATION_FORM_URLENCODED = new MediaType("application", "x-www-form-urlencoded");
+		APPLICATION_GRAPHQL = new MediaType("application", "graphql+json");
+		APPLICATION_GRAPHQL_RESPONSE = new MediaType("application", "graphql-response+json");
 		APPLICATION_JSON = new MediaType("application", "json");
 		APPLICATION_JSON_UTF8 = new MediaType("application", "json", StandardCharsets.UTF_8);
 		APPLICATION_NDJSON = new MediaType("application", "x-ndjson");
@@ -404,10 +462,12 @@ public class MediaType extends MimeType implements Serializable {
 		APPLICATION_PROBLEM_JSON = new MediaType("application", "problem+json");
 		APPLICATION_PROBLEM_JSON_UTF8 = new MediaType("application", "problem+json", StandardCharsets.UTF_8);
 		APPLICATION_PROBLEM_XML = new MediaType("application", "problem+xml");
+		APPLICATION_PROTOBUF = new MediaType("application", "x-protobuf");
 		APPLICATION_RSS_XML = new MediaType("application", "rss+xml");
 		APPLICATION_STREAM_JSON = new MediaType("application", "stream+json");
 		APPLICATION_XHTML_XML = new MediaType("application", "xhtml+xml");
 		APPLICATION_XML = new MediaType("application", "xml");
+		APPLICATION_YAML = new MediaType("application", "yaml");
 		IMAGE_GIF = new MediaType("image", "gif");
 		IMAGE_JPEG = new MediaType("image", "jpeg");
 		IMAGE_PNG = new MediaType("image", "png");
@@ -517,10 +577,10 @@ public class MediaType extends MimeType implements Serializable {
 	protected void checkParameters(String parameter, String value) {
 		super.checkParameters(parameter, value);
 		if (PARAM_QUALITY_FACTOR.equals(parameter)) {
-			value = unquote(value);
-			double d = Double.parseDouble(value);
+			String unquotedValue = unquote(value);
+			double d = Double.parseDouble(unquotedValue);
 			Assert.isTrue(d >= 0D && d <= 1D,
-					"Invalid quality value \"" + value + "\": should be between 0.0 and 1.0");
+					() -> "Invalid quality value \"" + unquotedValue + "\": should be between 0.0 and 1.0");
 		}
 	}
 
@@ -809,7 +869,7 @@ public class MediaType extends MimeType implements Serializable {
 	 * @param mediaTypes the list of media types to be sorted
 	 * @deprecated As of 6.0, in favor of {@link MimeTypeUtils#sortBySpecificity(List)}
 	 */
-	@Deprecated
+	@Deprecated(since = "6.0", forRemoval = true)
 	public static void sortBySpecificity(List<MediaType> mediaTypes) {
 		Assert.notNull(mediaTypes, "'mediaTypes' must not be null");
 		if (mediaTypes.size() > 1) {
@@ -838,7 +898,7 @@ public class MediaType extends MimeType implements Serializable {
 	 * @see #getQualityValue()
 	 * @deprecated As of 6.0, with no direct replacement
 	 */
-	@Deprecated
+	@Deprecated(since = "6.0", forRemoval = true)
 	public static void sortByQualityValue(List<MediaType> mediaTypes) {
 		Assert.notNull(mediaTypes, "'mediaTypes' must not be null");
 		if (mediaTypes.size() > 1) {
@@ -851,7 +911,7 @@ public class MediaType extends MimeType implements Serializable {
 	 * primary criteria and quality value the secondary.
 	 * @deprecated As of 6.0, in favor of {@link MimeTypeUtils#sortBySpecificity(List)}
 	 */
-	@Deprecated
+	@Deprecated(since = "6.0")
 	public static void sortBySpecificityAndQuality(List<MediaType> mediaTypes) {
 		Assert.notNull(mediaTypes, "'mediaTypes' must not be null");
 		if (mediaTypes.size() > 1) {
@@ -864,7 +924,7 @@ public class MediaType extends MimeType implements Serializable {
 	 * Comparator used by {@link #sortByQualityValue(List)}.
 	 * @deprecated As of 6.0, with no direct replacement
 	 */
-	@Deprecated
+	@Deprecated(since = "6.0", forRemoval = true)
 	public static final Comparator<MediaType> QUALITY_VALUE_COMPARATOR = (mediaType1, mediaType2) -> {
 		double quality1 = mediaType1.getQualityValue();
 		double quality2 = mediaType2.getQualityValue();
@@ -904,7 +964,8 @@ public class MediaType extends MimeType implements Serializable {
 	 * Comparator used by {@link #sortBySpecificity(List)}.
 	 * @deprecated As of 6.0, with no direct replacement
 	 */
-	@Deprecated
+	@Deprecated(since = "6.0", forRemoval = true)
+	@SuppressWarnings("removal")
 	public static final Comparator<MediaType> SPECIFICITY_COMPARATOR = new SpecificityComparator<>() {
 
 		@Override

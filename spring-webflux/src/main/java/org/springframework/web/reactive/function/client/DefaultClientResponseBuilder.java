@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -54,12 +54,6 @@ final class DefaultClientResponseBuilder implements ClientResponse.Builder {
 		@Override
 		public HttpMethod getMethod() {
 			return HttpMethod.valueOf("UNKNOWN");
-		}
-
-		@Override
-		@Deprecated
-		public String getMethodValue() {
-			return "UNKNOWN";
 		}
 
 		@Override
@@ -119,7 +113,7 @@ final class DefaultClientResponseBuilder implements ClientResponse.Builder {
 
 	@Override
 	public DefaultClientResponseBuilder statusCode(HttpStatusCode statusCode) {
-		Assert.notNull(statusCode, "StatusCode must not be null");
+		Assert.notNull(statusCode, "HttpStatusCode must not be null");
 		this.statusCode = statusCode;
 		return this;
 	}
@@ -143,10 +137,10 @@ final class DefaultClientResponseBuilder implements ClientResponse.Builder {
 		return this;
 	}
 
-	@SuppressWarnings("ConstantConditions")
+	@SuppressWarnings({"ConstantConditions", "NullAway"})
 	private HttpHeaders getHeaders() {
 		if (this.headers == null) {
-			this.headers = HttpHeaders.writableHttpHeaders(this.originalResponse.headers().asHttpHeaders());
+			this.headers = new HttpHeaders(this.originalResponse.headers().asHttpHeaders());
 		}
 		return this.headers;
 	}
@@ -165,7 +159,7 @@ final class DefaultClientResponseBuilder implements ClientResponse.Builder {
 		return this;
 	}
 
-	@SuppressWarnings("ConstantConditions")
+	@SuppressWarnings({"ConstantConditions", "NullAway"})
 	private MultiValueMap<String, ResponseCookie> getCookies() {
 		if (this.cookies == null) {
 			this.cookies = new LinkedMultiValueMap<>(this.originalResponse.cookies());
@@ -218,7 +212,7 @@ final class DefaultClientResponseBuilder implements ClientResponse.Builder {
 
 		return new DefaultClientResponse(httpResponse, this.strategies,
 				this.originalResponse != null ? this.originalResponse.logPrefix() : "",
-				this.request.getMethod() + " " + this.request.getURI(),
+				WebClientUtils.getRequestDescription(this.request.getMethod(), this.request.getURI()),
 				() -> this.request);
 	}
 
@@ -262,19 +256,13 @@ final class DefaultClientResponseBuilder implements ClientResponse.Builder {
 		}
 
 		@Override
-		@Deprecated
-		public int getRawStatusCode() {
-			return this.statusCode.value();
-		}
-
-		@Override
-		@SuppressWarnings("ConstantConditions")
+		@SuppressWarnings({"ConstantConditions", "NullAway"})
 		public HttpHeaders getHeaders() {
 			return (this.headers != null ? this.headers : this.originalResponse.headers().asHttpHeaders());
 		}
 
 		@Override
-		@SuppressWarnings("ConstantConditions")
+		@SuppressWarnings({"ConstantConditions", "NullAway"})
 		public MultiValueMap<String, ResponseCookie> getCookies() {
 			return (this.cookies != null ? this.cookies : this.originalResponse.cookies());
 		}

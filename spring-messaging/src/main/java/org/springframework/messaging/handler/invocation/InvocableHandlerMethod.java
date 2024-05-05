@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -78,7 +78,7 @@ public class InvocableHandlerMethod extends HandlerMethod {
 
 
 	/**
-	 * Set {@link HandlerMethodArgumentResolver HandlerMethodArgumentResolvers} to use to use for resolving method argument values.
+	 * Set {@link HandlerMethodArgumentResolver HandlerMethodArgumentResolvers} to use for resolving method argument values.
 	 */
 	public void setMessageMethodArgumentResolvers(HandlerMethodArgumentResolverComposite argumentResolvers) {
 		this.resolvers = argumentResolvers;
@@ -111,7 +111,7 @@ public class InvocableHandlerMethod extends HandlerMethod {
 	 * @see #doInvoke
 	 */
 	@Nullable
-	public Object invoke(Message<?> message, Object... providedArgs) throws Exception {
+	public Object invoke(Message<?> message, @Nullable Object... providedArgs) throws Exception {
 		Object[] args = getMethodArgumentValues(message, providedArgs);
 		if (logger.isTraceEnabled()) {
 			logger.trace("Arguments: " + Arrays.toString(args));
@@ -125,7 +125,7 @@ public class InvocableHandlerMethod extends HandlerMethod {
 	 * <p>The resulting array will be passed into {@link #doInvoke}.
 	 * @since 5.1.2
 	 */
-	protected Object[] getMethodArgumentValues(Message<?> message, Object... providedArgs) throws Exception {
+	protected Object[] getMethodArgumentValues(Message<?> message, @Nullable Object... providedArgs) throws Exception {
 		MethodParameter[] parameters = getMethodParameters();
 		if (ObjectUtils.isEmpty(parameters)) {
 			return EMPTY_ARGS;
@@ -170,20 +170,21 @@ public class InvocableHandlerMethod extends HandlerMethod {
 		}
 		catch (IllegalArgumentException ex) {
 			assertTargetBean(getBridgedMethod(), getBean(), args);
-			String text = (ex.getMessage() != null ? ex.getMessage() : "Illegal argument");
+			String text = (ex.getMessage() == null || ex.getCause() instanceof NullPointerException) ?
+					"Illegal argument": ex.getMessage();
 			throw new IllegalStateException(formatInvokeError(text, args), ex);
 		}
 		catch (InvocationTargetException ex) {
 			// Unwrap for HandlerExceptionResolvers ...
 			Throwable targetException = ex.getTargetException();
-			if (targetException instanceof RuntimeException) {
-				throw (RuntimeException) targetException;
+			if (targetException instanceof RuntimeException runtimeException) {
+				throw runtimeException;
 			}
-			else if (targetException instanceof Error) {
-				throw (Error) targetException;
+			else if (targetException instanceof Error error) {
+				throw error;
 			}
-			else if (targetException instanceof Exception) {
-				throw (Exception) targetException;
+			else if (targetException instanceof Exception exception) {
+				throw exception;
 			}
 			else {
 				throw new IllegalStateException(formatInvokeError("Invocation failure", args), targetException);
@@ -196,7 +197,7 @@ public class InvocableHandlerMethod extends HandlerMethod {
 	}
 
 
-	private class AsyncResultMethodParameter extends HandlerMethodParameter {
+	private class AsyncResultMethodParameter extends AnnotatedMethodParameter {
 
 		@Nullable
 		private final Object returnValue;

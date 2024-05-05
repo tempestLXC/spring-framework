@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2018 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,7 +36,7 @@ import org.springframework.util.function.SingletonSupplier;
  * behavior to any bean that carries the {@link Async} annotation at class or
  * method-level by adding a corresponding {@link AsyncAnnotationAdvisor} to the
  * exposed proxy (either an existing AOP proxy or a newly generated proxy that
- * implements all of the target's interfaces).
+ * implements all the target's interfaces).
  *
  * <p>The {@link TaskExecutor} responsible for the asynchronous execution may
  * be provided as well as the annotation type that indicates a method should be
@@ -98,8 +98,8 @@ public class AsyncAnnotationBeanPostProcessor extends AbstractBeanFactoryAwareAd
 	 * applying the corresponding default if a supplier is not resolvable.
 	 * @since 5.1
 	 */
-	public void configure(
-			@Nullable Supplier<Executor> executor, @Nullable Supplier<AsyncUncaughtExceptionHandler> exceptionHandler) {
+	public void configure(@Nullable Supplier<Executor> executor,
+			@Nullable Supplier<AsyncUncaughtExceptionHandler> exceptionHandler) {
 
 		this.executor = executor;
 		this.exceptionHandler = exceptionHandler;

@@ -103,13 +103,27 @@ public class HttpEntityMethodProcessor extends AbstractMessageConverterMethodPro
 	}
 
 	/**
-	 * Complete constructor for resolving {@code HttpEntity} and handling
-	 * {@code ResponseEntity}.
+	 * Variant of {@link #HttpEntityMethodProcessor(List, List)}
+	 * with an additional {@link ContentNegotiationManager} argument for return
+	 * value handling.
 	 */
 	public HttpEntityMethodProcessor(List<HttpMessageConverter<?>> converters,
 			@Nullable ContentNegotiationManager manager, List<Object> requestResponseBodyAdvice) {
 
 		super(converters, manager, requestResponseBodyAdvice);
+	}
+
+	/**
+	 * Variant of {@link #HttpEntityMethodProcessor(List, ContentNegotiationManager, List)}
+	 * with additional list of {@link ErrorResponse.Interceptor}s for return
+	 * value handling.
+	 * @since 6.2
+	 */
+	public HttpEntityMethodProcessor(List<HttpMessageConverter<?>> converters,
+			@Nullable ContentNegotiationManager manager, List<Object> requestResponseBodyAdvice,
+			List<ErrorResponse.Interceptor> interceptors) {
+
+		super(converters, manager, requestResponseBodyAdvice, interceptors);
 	}
 
 
@@ -185,7 +199,7 @@ public class HttpEntityMethodProcessor extends AbstractMessageConverterMethodPro
 			httpEntity = new ResponseEntity<>(response.getBody(), response.getHeaders(), response.getStatusCode());
 		}
 		else if (returnValue instanceof ProblemDetail detail) {
-			httpEntity = new ResponseEntity<>(returnValue, HttpHeaders.EMPTY, detail.getStatus());
+			httpEntity = ResponseEntity.of(detail).build();
 		}
 		else {
 			Assert.isInstanceOf(HttpEntity.class, returnValue);
@@ -197,6 +211,15 @@ public class HttpEntityMethodProcessor extends AbstractMessageConverterMethodPro
 				URI path = URI.create(inputMessage.getServletRequest().getRequestURI());
 				detail.setInstance(path);
 			}
+			if (logger.isWarnEnabled() && httpEntity instanceof ResponseEntity<?> responseEntity) {
+				if (responseEntity.getStatusCode().value() != detail.getStatus()) {
+					logger.warn(returnType.getExecutable().toGenericString() +
+							" returned ResponseEntity: " + responseEntity + ", but its status" +
+							" doesn't match the ProblemDetail status: " + detail.getStatus());
+				}
+			}
+			invokeErrorResponseInterceptors(
+					detail, (returnValue instanceof ErrorResponse response ? response : null));
 		}
 
 		HttpHeaders outputHeaders = outputMessage.getHeaders();

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,12 +23,11 @@ import java.util.Arrays;
 
 import javax.sql.DataSource;
 
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.dao.CannotAcquireLockException;
-import org.springframework.dao.CannotSerializeTransactionException;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.dao.DeadlockLoserDataAccessException;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.dao.PermissionDeniedDataAccessException;
 import org.springframework.dao.TransientDataAccessResourceException;
@@ -50,9 +49,9 @@ import org.springframework.util.function.SupplierUtils;
  * by default. This factory loads a "sql-error-codes.xml" file from the class path,
  * defining error code mappings for database names from database meta-data.
  * <li>Fallback to a fallback translator. {@link SQLStateSQLExceptionTranslator} is the
- * default fallback translator, analyzing the exception's SQL state only. On Java 6
- * which introduces its own {@code SQLException} subclass hierarchy, we will
- * use {@link SQLExceptionSubclassTranslator} by default, which in turns falls back
+ * default fallback translator, analyzing the exception's SQL state only. Since Java 6
+ * which introduces its own {@code SQLException} subclass hierarchy, we use
+ * {@link SQLExceptionSubclassTranslator} by default, which in turns falls back
  * to Spring's own SQL state translation when not encountering specific subclasses.
  * </ul>
  *
@@ -60,6 +59,11 @@ import org.springframework.util.function.SupplierUtils;
  * this package. It can be overridden through a file of the same name in the root
  * of the class path (e.g. in the "/WEB-INF/classes" directory), as long as the
  * Spring JDBC package is loaded from the same ClassLoader.
+ *
+ * <p>This translator is commonly used by default if a user-provided `sql-error-codes.xml`
+ * file has been found in the root of the classpath, as a signal to use this strategy.
+ * Otherwise, {@link SQLExceptionSubclassTranslator} serves as the default translator
+ * as of 6.0.
  *
  * @author Rod Johnson
  * @author Thomas Risberg
@@ -76,8 +80,10 @@ public class SQLErrorCodeSQLExceptionTranslator extends AbstractFallbackSQLExcep
 	private static final int MESSAGE_SQL_THROWABLE_CONSTRUCTOR = 4;
 	private static final int MESSAGE_SQL_SQLEX_CONSTRUCTOR = 5;
 
+	private static final boolean userProvidedErrorCodesFilePresent =
+			new ClassPathResource(SQLErrorCodesFactory.SQL_ERROR_CODE_OVERRIDE_PATH,
+					SQLErrorCodesFactory.class.getClassLoader()).exists();
 
-	/** Error codes used by this translator. */
 	@Nullable
 	private SingletonSupplier<SQLErrorCodes> sqlErrorCodes;
 
@@ -173,6 +179,7 @@ public class SQLErrorCodeSQLExceptionTranslator extends AbstractFallbackSQLExcep
 	}
 
 
+	@SuppressWarnings("deprecation")
 	@Override
 	@Nullable
 	protected DataAccessException doTranslate(String task, @Nullable String sql, SQLException ex) {
@@ -195,9 +202,9 @@ public class SQLErrorCodeSQLExceptionTranslator extends AbstractFallbackSQLExcep
 		if (sqlErrorCodes != null) {
 			SQLExceptionTranslator customTranslator = sqlErrorCodes.getCustomSqlExceptionTranslator();
 			if (customTranslator != null) {
-				DataAccessException customDex = customTranslator.translate(task, sql, sqlEx);
-				if (customDex != null) {
-					return customDex;
+				dae = customTranslator.translate(task, sql, sqlEx);
+				if (dae != null) {
+					return dae;
 				}
 			}
 		}
@@ -212,8 +219,8 @@ public class SQLErrorCodeSQLExceptionTranslator extends AbstractFallbackSQLExcep
 				// Try to find SQLException with actual error code, looping through the causes.
 				// E.g. applicable to java.sql.DataTruncation as of JDK 1.6.
 				SQLException current = sqlEx;
-				while (current.getErrorCode() == 0 && current.getCause() instanceof SQLException) {
-					current = (SQLException) current.getCause();
+				while (current.getErrorCode() == 0 && current.getCause() instanceof SQLException sqlException) {
+					current = sqlException;
 				}
 				errorCode = Integer.toString(current.getErrorCode());
 			}
@@ -225,11 +232,10 @@ public class SQLErrorCodeSQLExceptionTranslator extends AbstractFallbackSQLExcep
 					for (CustomSQLErrorCodesTranslation customTranslation : customTranslations) {
 						if (Arrays.binarySearch(customTranslation.getErrorCodes(), errorCode) >= 0 &&
 								customTranslation.getExceptionClass() != null) {
-							DataAccessException customException = createCustomException(
-									task, sql, sqlEx, customTranslation.getExceptionClass());
-							if (customException != null) {
+							dae = createCustomException(task, sql, sqlEx, customTranslation.getExceptionClass());
+							if (dae != null) {
 								logTranslation(task, sql, sqlEx, true);
-								return customException;
+								return dae;
 							}
 						}
 					}
@@ -269,11 +275,11 @@ public class SQLErrorCodeSQLExceptionTranslator extends AbstractFallbackSQLExcep
 				}
 				else if (Arrays.binarySearch(sqlErrorCodes.getDeadlockLoserCodes(), errorCode) >= 0) {
 					logTranslation(task, sql, sqlEx, false);
-					return new DeadlockLoserDataAccessException(buildMessage(task, sql, sqlEx), sqlEx);
+					return new org.springframework.dao.DeadlockLoserDataAccessException(buildMessage(task, sql, sqlEx), sqlEx);
 				}
 				else if (Arrays.binarySearch(sqlErrorCodes.getCannotSerializeTransactionCodes(), errorCode) >= 0) {
 					logTranslation(task, sql, sqlEx, false);
-					return new CannotSerializeTransactionException(buildMessage(task, sql, sqlEx), sqlEx);
+					return new org.springframework.dao.CannotSerializeTransactionException(buildMessage(task, sql, sqlEx), sqlEx);
 				}
 			}
 		}
@@ -303,7 +309,9 @@ public class SQLErrorCodeSQLExceptionTranslator extends AbstractFallbackSQLExcep
 	 * resulting from custom translation. This exception should include the {@code sqlEx} parameter
 	 * as a nested root cause. This implementation always returns {@code null}, meaning that the
 	 * translator always falls back to the default error codes.
+	 * @deprecated as of 6.1, in favor of {@link #setCustomTranslator}
 	 */
+	@Deprecated(since = "6.1")
 	@Nullable
 	protected DataAccessException customTranslate(String task, @Nullable String sql, SQLException sqlEx) {
 		return null;
@@ -415,6 +423,15 @@ public class SQLErrorCodeSQLExceptionTranslator extends AbstractFallbackSQLExcep
 					"', error code '" + sqlEx.getErrorCode() + "', message [" + sqlEx.getMessage() + "]" +
 					(sql != null ? "; SQL was [" + sql + "]": "") + " for task [" + task + "]");
 		}
+	}
+
+
+	/**
+	 * Check whether there is a user-provided `sql-error-codes.xml` file
+	 * in the root of the classpath.
+	 */
+	static boolean hasUserProvidedErrorCodesFile() {
+		return userProvidedErrorCodesFilePresent;
 	}
 
 }

@@ -32,7 +32,7 @@ import org.springframework.util.MultiValueMap;
 
 /**
  * Wraps another {@link ServerHttpResponse} and delegates all methods to it.
- * Sub-classes can override specific methods selectively.
+ * Subclasses can override specific methods selectively.
  *
  * @author Rossen Stoyanchev
  * @since 5.0
@@ -61,6 +61,7 @@ public class ServerHttpResponseDecorator implements ServerHttpResponse {
 	}
 
 	@Override
+	@Nullable
 	public HttpStatusCode getStatusCode() {
 		return getDelegate().getStatusCode();
 	}
@@ -71,6 +72,7 @@ public class ServerHttpResponseDecorator implements ServerHttpResponse {
 	}
 
 	@Override
+	@Nullable
 	@Deprecated
 	public Integer getRawStatusCode() {
 		return getDelegate().getRawStatusCode();
@@ -131,11 +133,11 @@ public class ServerHttpResponseDecorator implements ServerHttpResponse {
 	 * @since 5.3.3
 	 */
 	public static <T> T getNativeResponse(ServerHttpResponse response) {
-		if (response instanceof AbstractServerHttpResponse) {
-			return ((AbstractServerHttpResponse) response).getNativeResponse();
+		if (response instanceof AbstractServerHttpResponse abstractServerHttpResponse) {
+			return abstractServerHttpResponse.getNativeResponse();
 		}
-		else if (response instanceof ServerHttpResponseDecorator) {
-			return getNativeResponse(((ServerHttpResponseDecorator) response).getDelegate());
+		else if (response instanceof ServerHttpResponseDecorator serverHttpResponseDecorator) {
+			return getNativeResponse(serverHttpResponseDecorator.getDelegate());
 		}
 		else {
 			throw new IllegalArgumentException(

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -60,6 +60,7 @@ class CacheErrorHandlerTests {
 
 	private SimpleService simpleService;
 
+
 	@BeforeEach
 	void setup() {
 		this.context = new AnnotationConfigApplicationContext(Config.class);
@@ -69,10 +70,12 @@ class CacheErrorHandlerTests {
 		this.simpleService = context.getBean(SimpleService.class);
 	}
 
+
 	@AfterEach
-	void tearDown() {
+	void closeContext() {
 		this.context.close();
 	}
+
 
 	@Test
 	void getFail() {
@@ -107,9 +110,9 @@ class CacheErrorHandlerTests {
 
 		this.cacheInterceptor.setErrorHandler(new SimpleCacheErrorHandler());
 
-		assertThatExceptionOfType(UnsupportedOperationException.class).isThrownBy(() ->
-				this.simpleService.get(0L))
-			.withMessage("Test exception on get");
+		assertThatExceptionOfType(UnsupportedOperationException.class)
+				.isThrownBy(() -> this.simpleService.get(0L))
+				.withMessage("Test exception on get");
 	}
 
 	@Test
@@ -128,9 +131,9 @@ class CacheErrorHandlerTests {
 
 		this.cacheInterceptor.setErrorHandler(new SimpleCacheErrorHandler());
 
-		assertThatExceptionOfType(UnsupportedOperationException.class).isThrownBy(() ->
-				this.simpleService.put(0L))
-			.withMessage("Test exception on put");
+		assertThatExceptionOfType(UnsupportedOperationException.class)
+				.isThrownBy(() -> this.simpleService.put(0L))
+				.withMessage("Test exception on put");
 	}
 
 	@Test
@@ -149,9 +152,9 @@ class CacheErrorHandlerTests {
 
 		this.cacheInterceptor.setErrorHandler(new SimpleCacheErrorHandler());
 
-		assertThatExceptionOfType(UnsupportedOperationException.class).isThrownBy(() ->
-				this.simpleService.evict(0L))
-			.withMessage("Test exception on evict");
+		assertThatExceptionOfType(UnsupportedOperationException.class)
+				.isThrownBy(() -> this.simpleService.evict(0L))
+				.withMessage("Test exception on evict");
 	}
 
 	@Test
@@ -170,9 +173,9 @@ class CacheErrorHandlerTests {
 
 		this.cacheInterceptor.setErrorHandler(new SimpleCacheErrorHandler());
 
-		assertThatExceptionOfType(UnsupportedOperationException.class).isThrownBy(() ->
-				this.simpleService.clear())
-			.withMessage("Test exception on clear");
+		assertThatExceptionOfType(UnsupportedOperationException.class)
+				.isThrownBy(() -> this.simpleService.clear())
+				.withMessage("Test exception on clear");
 	}
 
 
@@ -183,7 +186,7 @@ class CacheErrorHandlerTests {
 		@Bean
 		@Override
 		public CacheErrorHandler errorHandler() {
-			return mock(CacheErrorHandler.class);
+			return mock();
 		}
 
 		@Bean
@@ -201,7 +204,7 @@ class CacheErrorHandlerTests {
 
 		@Bean
 		public Cache mockCache() {
-			Cache cache = mock(Cache.class);
+			Cache cache = mock();
 			given(cache.getName()).willReturn("test");
 			return cache;
 		}

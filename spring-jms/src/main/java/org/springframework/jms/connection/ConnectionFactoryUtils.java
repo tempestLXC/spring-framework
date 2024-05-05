@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -68,7 +68,7 @@ public abstract class ConnectionFactoryUtils {
 		if (con == null) {
 			return;
 		}
-		if (started && cf instanceof SmartConnectionFactory && ((SmartConnectionFactory) cf).shouldStop(con)) {
+		if (started && cf instanceof SmartConnectionFactory smartFactory && smartFactory.shouldStop(con)) {
 			try {
 				con.stop();
 			}
@@ -94,8 +94,8 @@ public abstract class ConnectionFactoryUtils {
 	 */
 	public static Session getTargetSession(Session session) {
 		Session sessionToUse = session;
-		while (sessionToUse instanceof SessionProxy) {
-			sessionToUse = ((SessionProxy) sessionToUse).getTargetSession();
+		while (sessionToUse instanceof SessionProxy sessionProxy) {
+			sessionToUse = sessionProxy.getTargetSession();
 		}
 		return sessionToUse;
 	}
@@ -285,6 +285,7 @@ public abstract class ConnectionFactoryUtils {
 	 * @throws JMSException in case of JMS failure
 	 */
 	@Nullable
+	@SuppressWarnings("NullAway")
 	public static Session doGetTransactionalSession(
 			ConnectionFactory connectionFactory, ResourceFactory resourceFactory, boolean startConnection)
 			throws JMSException {
@@ -419,6 +420,8 @@ public abstract class ConnectionFactoryUtils {
 
 		private final boolean transacted;
 
+		private boolean commitProcessed;
+
 		public JmsResourceSynchronization(JmsResourceHolder resourceHolder, Object resourceKey, boolean transacted) {
 			super(resourceHolder, resourceKey);
 			this.transacted = transacted;
@@ -431,12 +434,23 @@ public abstract class ConnectionFactoryUtils {
 
 		@Override
 		protected void processResourceAfterCommit(JmsResourceHolder resourceHolder) {
+			this.commitProcessed = true;
 			try {
 				resourceHolder.commitAll();
 			}
 			catch (JMSException ex) {
 				throw new SynchedLocalTransactionFailedException("Local JMS transaction failed to commit", ex);
 			}
+		}
+
+		@Override
+		public void afterCompletion(int status) {
+			if (status == STATUS_COMMITTED && this.transacted && !this.commitProcessed) {
+				// JmsResourceSynchronization registered in afterCommit phase of other synchronization
+				// -> late local JMS transaction commit here, otherwise it would silently get dropped.
+				afterCommit();
+			}
+			super.afterCompletion(status);
 		}
 
 		@Override

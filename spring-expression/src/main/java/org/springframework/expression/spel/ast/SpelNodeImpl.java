@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2019 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ package org.springframework.expression.spel.ast;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Member;
 import java.lang.reflect.Method;
+import java.util.function.Supplier;
 
 import org.springframework.asm.MethodVisitor;
 import org.springframework.asm.Opcodes;
@@ -40,6 +41,7 @@ import org.springframework.util.ObjectUtils;
  *
  * @author Andy Clement
  * @author Juergen Hoeller
+ * @author Sam Brannen
  * @since 3.0
  */
 public abstract class SpelNodeImpl implements SpelNode, Opcodes {
@@ -64,12 +66,12 @@ public abstract class SpelNodeImpl implements SpelNode, Opcodes {
 	 * <p>The descriptor is like the bytecode form but is slightly easier to work with.
 	 * It does not include the trailing semicolon (for non array reference types).
 	 * Some examples: Ljava/lang/String, I, [I
-     */
+	 */
 	@Nullable
 	protected volatile String exitTypeDescriptor;
 
 
-	public SpelNodeImpl(int startPos, int endPos, SpelNodeImpl... operands) {
+	public SpelNodeImpl(int startPos, int endPos, @Nullable SpelNodeImpl... operands) {
 		this.startPos = startPos;
 		this.endPos = endPos;
 		if (!ObjectUtils.isEmpty(operands)) {
@@ -83,8 +85,8 @@ public abstract class SpelNodeImpl implements SpelNode, Opcodes {
 
 
 	/**
-     * Return {@code true} if the next child is one of the specified classes.
-     */
+	 * Return {@code true} if the next child is one of the specified classes.
+	 */
 	protected boolean nextChildIs(Class<?>... classes) {
 		if (this.parent != null) {
 			SpelNodeImpl[] peers = this.parent.children;
@@ -125,7 +127,29 @@ public abstract class SpelNodeImpl implements SpelNode, Opcodes {
 
 	@Override
 	public void setValue(ExpressionState expressionState, @Nullable Object newValue) throws EvaluationException {
-		throw new SpelEvaluationException(getStartPosition(), SpelMessage.SETVALUE_NOT_SUPPORTED, getClass());
+		setValueInternal(expressionState, () -> new TypedValue(newValue));
+	}
+
+	/**
+	 * Evaluate the expression to a node and then set the new value created by the
+	 * specified {@link Supplier} on that node.
+	 * <p>For example, if the expression evaluates to a property reference, then the
+	 * property will be set to the new value.
+	 * <p>Favor this method over {@link #setValue(ExpressionState, Object)} when
+	 * the value should be lazily computed.
+	 * <p>By default, this method throws a {@link SpelEvaluationException},
+	 * effectively disabling this feature. Subclasses may override this method to
+	 * provide an actual implementation.
+	 * @param expressionState the current expression state (includes the context)
+	 * @param valueSupplier a supplier of the new value
+	 * @throws EvaluationException if any problem occurs evaluating the expression or
+	 * setting the new value
+	 * @since 5.2.24
+	 */
+	public TypedValue setValueInternal(ExpressionState expressionState, Supplier<TypedValue> valueSupplier)
+			throws EvaluationException {
+
+		throw new SpelEvaluationException(getStartPosition(), SpelMessage.SETVALUE_NOT_SUPPORTED, getClass().getName());
 	}
 
 	@Override
@@ -144,7 +168,7 @@ public abstract class SpelNodeImpl implements SpelNode, Opcodes {
 		if (obj == null) {
 			return null;
 		}
-		return (obj instanceof Class ? ((Class<?>) obj) : obj.getClass());
+		return (obj instanceof Class<?> clazz ? clazz : obj.getClass());
 	}
 
 	@Override
@@ -158,24 +182,13 @@ public abstract class SpelNodeImpl implements SpelNode, Opcodes {
 	}
 
 	/**
-	 * Check whether a node can be compiled to bytecode. The reasoning in each node may
-	 * be different but will typically involve checking whether the exit type descriptor
-	 * of the node is known and any relevant child nodes are compilable.
-	 * @return {@code true} if this node can be compiled to bytecode
+	 * Determine if this node is the target of a null-safe navigation operation.
+	 * <p>The default implementation returns {@code false}.
+	 * @return {@code true} if this node is the target of a null-safe operation
+	 * @since 6.1.6
 	 */
-	public boolean isCompilable() {
+	public boolean isNullSafe() {
 		return false;
-	}
-
-	/**
-	 * Generate the bytecode for this node into the supplied visitor. Context info about
-	 * the current expression being compiled is available in the codeflow object, e.g.
-	 * including information about the type of the object currently on the stack.
-	 * @param mv the ASM MethodVisitor into which code should be generated
-	 * @param cf a context object with info about what is on the stack
-	 */
-	public void generateCode(MethodVisitor mv, CodeFlow cf) {
-		throw new IllegalStateException(getClass().getName() +" has no generateCode(..) method");
 	}
 
 	@Nullable
@@ -197,18 +210,17 @@ public abstract class SpelNodeImpl implements SpelNode, Opcodes {
 
 	/**
 	 * Generate code that handles building the argument values for the specified method.
-	 * This method will take account of whether the invoked method is a varargs method
+	 * <p>This method will take into account whether the invoked method is a varargs method,
 	 * and if it is then the argument values will be appropriately packaged into an array.
 	 * @param mv the method visitor where code should be generated
 	 * @param cf the current codeflow
-	 * @param member the method or constructor for which arguments are being setup
+	 * @param member the method or constructor for which arguments are being set up
 	 * @param arguments the expression nodes for the expression supplied argument values
 	 */
 	protected static void generateCodeForArguments(MethodVisitor mv, CodeFlow cf, Member member, SpelNodeImpl[] arguments) {
 		String[] paramDescriptors = null;
 		boolean isVarargs = false;
-		if (member instanceof Constructor) {
-			Constructor<?> ctor = (Constructor<?>) member;
+		if (member instanceof Constructor<?> ctor) {
 			paramDescriptors = CodeFlow.toDescriptors(ctor.getParameterTypes());
 			isVarargs = ctor.isVarArgs();
 		}
@@ -225,7 +237,7 @@ public abstract class SpelNodeImpl implements SpelNode, Opcodes {
 
 			// Fulfill all the parameter requirements except the last one
 			for (p = 0; p < paramDescriptors.length - 1; p++) {
-				generateCodeForArgument(mv, cf, arguments[p], paramDescriptors[p]);
+				cf.generateCodeForArgument(mv, arguments[p], paramDescriptors[p]);
 			}
 
 			SpelNodeImpl lastChild = (childCount == 0 ? null : arguments[childCount - 1]);
@@ -233,7 +245,7 @@ public abstract class SpelNodeImpl implements SpelNode, Opcodes {
 			// Determine if the final passed argument is already suitably packaged in array
 			// form to be passed to the method
 			if (lastChild != null && arrayType.equals(lastChild.getExitDescriptor())) {
-				generateCodeForArgument(mv, cf, lastChild, paramDescriptors[p]);
+				cf.generateCodeForArgument(mv, lastChild, paramDescriptors[p]);
 			}
 			else {
 				arrayType = arrayType.substring(1); // trim the leading '[', may leave other '['
@@ -245,7 +257,7 @@ public abstract class SpelNodeImpl implements SpelNode, Opcodes {
 					SpelNodeImpl child = arguments[p];
 					mv.visitInsn(DUP);
 					CodeFlow.insertOptimalLoad(mv, arrayindex++);
-					generateCodeForArgument(mv, cf, child, arrayType);
+					cf.generateCodeForArgument(mv, child, arrayType);
 					CodeFlow.insertArrayStore(mv, arrayType);
 					p++;
 				}
@@ -253,7 +265,7 @@ public abstract class SpelNodeImpl implements SpelNode, Opcodes {
 		}
 		else {
 			for (int i = 0; i < paramDescriptors.length;i++) {
-				generateCodeForArgument(mv, cf, arguments[i], paramDescriptors[i]);
+				cf.generateCodeForArgument(mv, arguments[i], paramDescriptors[i]);
 			}
 		}
 	}
@@ -261,25 +273,12 @@ public abstract class SpelNodeImpl implements SpelNode, Opcodes {
 	/**
 	 * Ask an argument to generate its bytecode and then follow it up
 	 * with any boxing/unboxing/checkcasting to ensure it matches the expected parameter descriptor.
+	 * @deprecated As of Spring Framework 6.2, in favor of
+	 * {@link CodeFlow#generateCodeForArgument(MethodVisitor, SpelNode, String)}
 	 */
+	@Deprecated(since = "6.2")
 	protected static void generateCodeForArgument(MethodVisitor mv, CodeFlow cf, SpelNodeImpl argument, String paramDesc) {
-		cf.enterCompilationScope();
-		argument.generateCode(mv, cf);
-		String lastDesc = cf.lastDescriptor();
-		Assert.state(lastDesc != null, "No last descriptor");
-		boolean primitiveOnStack = CodeFlow.isPrimitive(lastDesc);
-		// Check if need to box it for the method reference?
-		if (primitiveOnStack && paramDesc.charAt(0) == 'L') {
-			CodeFlow.insertBoxIfNecessary(mv, lastDesc.charAt(0));
-		}
-		else if (paramDesc.length() == 1 && !primitiveOnStack) {
-			CodeFlow.insertUnboxInsns(mv, paramDesc.charAt(0), lastDesc);
-		}
-		else if (!paramDesc.equals(lastDesc)) {
-			// This would be unnecessary in the case of subtyping (e.g. method takes Number but Integer passed in)
-			CodeFlow.insertCheckCast(mv, paramDesc);
-		}
-		cf.exitCompilationScope();
+		cf.generateCodeForArgument(mv, argument, paramDesc);
 	}
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,15 +16,19 @@
 
 package org.springframework.web.server;
 
-import org.springframework.core.NestedExceptionUtils;
+import java.util.Locale;
+
+import org.springframework.context.MessageSource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
+import org.springframework.http.ProblemDetail;
 import org.springframework.lang.Nullable;
 import org.springframework.web.ErrorResponseException;
 
 /**
- * Subclass of {@link ErrorResponseException} that accepts a "reason" and maps
- * it to the "detail" property of {@link org.springframework.http.ProblemDetail}.
+ * Subclass of {@link ErrorResponseException} that accepts a "reason", and by
+ * default maps that to the {@link ErrorResponseException#setDetail(String) "detail"}
+ * of the {@code ProblemDetail}.
  *
  * @author Rossen Stoyanchev
  * @author Juergen Hoeller
@@ -75,8 +79,24 @@ public class ResponseStatusException extends ErrorResponseException {
 	 * @param cause a nested exception (optional)
 	 */
 	public ResponseStatusException(HttpStatusCode status, @Nullable String reason, @Nullable Throwable cause) {
-		super(status, cause);
+		this(status, reason, cause, null, null);
+	}
+
+	/**
+	 * Constructor with a message code and arguments for resolving the error
+	 * "detail" via {@link org.springframework.context.MessageSource}.
+	 * @param status the HTTP status (required)
+	 * @param reason the associated reason (optional)
+	 * @param cause a nested exception (optional)
+	 * @since 6.0
+	 */
+	protected ResponseStatusException(
+			HttpStatusCode status, @Nullable String reason, @Nullable Throwable cause,
+			@Nullable String messageDetailCode, @Nullable Object[] messageDetailArguments) {
+
+		super(status, ProblemDetail.forStatus(status), cause, messageDetailCode, messageDetailArguments);
 		this.reason = reason;
+		setDetail(reason);
 	}
 
 
@@ -105,15 +125,31 @@ public class ResponseStatusException extends ErrorResponseException {
 	 * @since 5.1.13
 	 * @deprecated as of 6.0 in favor of {@link #getHeaders()}
 	 */
-	@Deprecated
+	@Deprecated(since = "6.0")
 	public HttpHeaders getResponseHeaders() {
 		return HttpHeaders.EMPTY;
 	}
 
 	@Override
+	public ProblemDetail updateAndGetBody(@Nullable MessageSource messageSource, Locale locale) {
+		super.updateAndGetBody(messageSource, locale);
+
+		// The reason may be a code (consistent with ResponseStatusExceptionResolver)
+
+		if (messageSource != null && getReason() != null && getReason().equals(getBody().getDetail())) {
+			Object[] arguments = getDetailMessageArguments(messageSource, locale);
+			String resolved = messageSource.getMessage(getReason(), arguments, null, locale);
+			if (resolved != null) {
+				getBody().setDetail(resolved);
+			}
+		}
+
+		return getBody();
+	}
+
+	@Override
 	public String getMessage() {
-		String msg = getStatusCode() + (this.reason != null ? " \"" + this.reason + "\"" : "");
-		return NestedExceptionUtils.buildMessage(msg, getCause());
+		return getStatusCode() + (this.reason != null ? " \"" + this.reason + "\"" : "");
 	}
 
 }

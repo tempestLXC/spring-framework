@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -189,7 +189,7 @@ class PrecedenceTestAspect implements BeanNameAware, Ordered {
 		int ret = -1;
 		this.collaborator.aroundAdviceOne(this.name);
 		try {
-			ret = ((Integer)pjp.proceed()).intValue();
+			ret = (Integer) pjp.proceed();
 		}
 		catch (Throwable t) {
 			throw new RuntimeException(t);
@@ -202,7 +202,7 @@ class PrecedenceTestAspect implements BeanNameAware, Ordered {
 		int ret = -1;
 		this.collaborator.aroundAdviceTwo(this.name);
 		try {
-			ret = ((Integer)pjp.proceed()).intValue();
+			ret = (Integer) pjp.proceed();
 		}
 		catch (Throwable t) {
 			throw new RuntimeException(t);
@@ -242,8 +242,7 @@ class SimpleSpringBeforeAdvice implements MethodBeforeAdvice, BeanNameAware {
 	 * @see org.springframework.aop.MethodBeforeAdvice#before(java.lang.reflect.Method, java.lang.Object[], java.lang.Object)
 	 */
 	@Override
-	public void before(Method method, Object[] args, @Nullable Object target)
-			throws Throwable {
+	public void before(Method method, Object[] args, @Nullable Object target) {
 		this.collaborator.beforeAdviceOne(this.name);
 	}
 

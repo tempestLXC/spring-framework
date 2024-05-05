@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -56,8 +56,6 @@ import org.springframework.util.StringUtils;
  */
 public class ServletServerHttpRequest implements ServerHttpRequest {
 
-	protected static final String FORM_CONTENT_TYPE = "application/x-www-form-urlencoded";
-
 	protected static final Charset FORM_CHARSET = StandardCharsets.UTF_8;
 
 
@@ -97,43 +95,47 @@ public class ServletServerHttpRequest implements ServerHttpRequest {
 	}
 
 	@Override
-	@Deprecated
-	public String getMethodValue() {
-		return this.servletRequest.getMethod();
-	}
-
-	@Override
 	public URI getURI() {
 		if (this.uri == null) {
-			String urlString = null;
-			boolean hasQuery = false;
-			try {
-				StringBuffer url = this.servletRequest.getRequestURL();
-				String query = this.servletRequest.getQueryString();
-				hasQuery = StringUtils.hasText(query);
-				if (hasQuery) {
-					url.append('?').append(query);
-				}
-				urlString = url.toString();
-				this.uri = new URI(urlString);
-			}
-			catch (URISyntaxException ex) {
-				if (!hasQuery) {
-					throw new IllegalStateException(
-							"Could not resolve HttpServletRequest as URI: " + urlString, ex);
-				}
-				// Maybe a malformed query string... try plain request URL
-				try {
-					urlString = this.servletRequest.getRequestURL().toString();
-					this.uri = new URI(urlString);
-				}
-				catch (URISyntaxException ex2) {
-					throw new IllegalStateException(
-							"Could not resolve HttpServletRequest as URI: " + urlString, ex2);
-				}
-			}
+			this.uri = initURI(this.servletRequest);
 		}
 		return this.uri;
+	}
+
+	/**
+	 * Initialize a URI from the given Servlet request.
+	 * @param servletRequest the request
+	 * @return the initialized URI
+	 * @since 6.1
+	 */
+	public static URI initURI(HttpServletRequest servletRequest) {
+		String urlString = null;
+		boolean hasQuery = false;
+		try {
+			StringBuffer url = servletRequest.getRequestURL();
+			String query = servletRequest.getQueryString();
+			hasQuery = StringUtils.hasText(query);
+			if (hasQuery) {
+				url.append('?').append(query);
+			}
+			urlString = url.toString();
+			return new URI(urlString);
+		}
+		catch (URISyntaxException ex) {
+			if (!hasQuery) {
+				throw new IllegalStateException(
+						"Could not resolve HttpServletRequest as URI: " + urlString, ex);
+			}
+			// Maybe a malformed query string... try plain request URL
+			try {
+				urlString = servletRequest.getRequestURL().toString();
+				return new URI(urlString);
+			}
+			catch (URISyntaxException ex2) {
+				throw new IllegalStateException(
+						"Could not resolve HttpServletRequest as URI: " + urlString, ex2);
+			}
+		}
 	}
 
 	@Override
@@ -197,7 +199,7 @@ public class ServletServerHttpRequest implements ServerHttpRequest {
 
 	@Override
 	public InetSocketAddress getLocalAddress() {
-		return new InetSocketAddress(this.servletRequest.getLocalName(), this.servletRequest.getLocalPort());
+		return new InetSocketAddress(this.servletRequest.getLocalAddr(), this.servletRequest.getLocalPort());
 	}
 
 	@Override
@@ -207,7 +209,7 @@ public class ServletServerHttpRequest implements ServerHttpRequest {
 
 	@Override
 	public InputStream getBody() throws IOException {
-		if (isFormPost(this.servletRequest)) {
+		if (isFormPost(this.servletRequest) && this.servletRequest.getQueryString() == null) {
 			return getBodyFromServletRequestParameters(this.servletRequest);
 		}
 		else {
@@ -230,7 +232,7 @@ public class ServletServerHttpRequest implements ServerHttpRequest {
 
 	private static boolean isFormPost(HttpServletRequest request) {
 		String contentType = request.getContentType();
-		return (contentType != null && contentType.contains(FORM_CONTENT_TYPE) &&
+		return (contentType != null && contentType.contains(MediaType.APPLICATION_FORM_URLENCODED_VALUE) &&
 				HttpMethod.POST.matches(request.getMethod()));
 	}
 
@@ -240,7 +242,7 @@ public class ServletServerHttpRequest implements ServerHttpRequest {
 	 * from the body, which can fail if any other code has used the ServletRequest
 	 * to access a parameter, thus causing the input stream to be "consumed".
 	 */
-	private static InputStream getBodyFromServletRequestParameters(HttpServletRequest request) throws IOException {
+	private InputStream getBodyFromServletRequestParameters(HttpServletRequest request) throws IOException {
 		ByteArrayOutputStream bos = new ByteArrayOutputStream(1024);
 		Writer writer = new OutputStreamWriter(bos, FORM_CHARSET);
 
@@ -266,7 +268,12 @@ public class ServletServerHttpRequest implements ServerHttpRequest {
 		}
 		writer.flush();
 
-		return new ByteArrayInputStream(bos.toByteArray());
+		byte[] bytes = bos.toByteArray();
+		if (bytes.length > 0 && getHeaders().containsKey(HttpHeaders.CONTENT_LENGTH)) {
+			getHeaders().setContentLength(bytes.length);
+		}
+
+		return new ByteArrayInputStream(bytes);
 	}
 
 }

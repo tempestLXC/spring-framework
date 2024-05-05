@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -44,7 +44,8 @@ import org.springframework.util.ClassUtils;
 
 /**
  * Message converter that uses Jackson 2.x to convert messages to and from JSON.
- * Maps an object to a {@link BytesMessage}, or to a {@link TextMessage} if the
+ *
+ * <p>Maps an object to a {@link BytesMessage}, or to a {@link TextMessage} if the
  * {@link #setTargetType targetType} is set to {@link MessageType#TEXT}.
  * Converts from a {@link TextMessage} or {@link BytesMessage} to an object.
  *
@@ -53,8 +54,6 @@ import org.springframework.util.ClassUtils;
  * <li>{@link MapperFeature#DEFAULT_VIEW_INCLUSION} is disabled</li>
  * <li>{@link DeserializationFeature#FAIL_ON_UNKNOWN_PROPERTIES} is disabled</li>
  * </ul>
- *
- * <p>Compatible with Jackson 2.9 to 2.12, as of Spring 5.3.
  *
  * @author Mark Pollack
  * @author Dave Syer
@@ -91,6 +90,9 @@ public class MappingJackson2MessageConverter implements SmartMessageConverter, B
 	private ClassLoader beanClassLoader;
 
 
+	/**
+	 * Construct a {@code MappingJackson2MessageConverter} with a default {@link ObjectMapper}.
+	 */
 	@SuppressWarnings("deprecation")  // on Jackson 2.13: configure(MapperFeature, boolean)
 	public MappingJackson2MessageConverter() {
 		this.objectMapper = new ObjectMapper();
@@ -99,7 +101,19 @@ public class MappingJackson2MessageConverter implements SmartMessageConverter, B
 	}
 
 	/**
-	 * Specify the {@link ObjectMapper} to use instead of using the default.
+	 * Construct a {@code MappingJackson2MessageConverter} with a custom {@link ObjectMapper}.
+	 * @param objectMapper the {@code ObjectMapper} to use
+	 * @since 6.1
+	 */
+	public MappingJackson2MessageConverter(ObjectMapper objectMapper) {
+		Assert.notNull(objectMapper, "ObjectMapper must not be null");
+		this.objectMapper = objectMapper;
+	}
+
+
+	/**
+	 * Set the {@code ObjectMapper} for this converter.
+	 * <p>If not set, a default {@link ObjectMapper#ObjectMapper() ObjectMapper} is used.
 	 */
 	public void setObjectMapper(ObjectMapper objectMapper) {
 		Assert.notNull(objectMapper, "ObjectMapper must not be null");
@@ -350,11 +364,11 @@ public class MappingJackson2MessageConverter implements SmartMessageConverter, B
 	 * Convenience method to dispatch to converters for individual message types.
 	 */
 	private Object convertToObject(Message message, JavaType targetJavaType) throws JMSException, IOException {
-		if (message instanceof TextMessage) {
-			return convertFromTextMessage((TextMessage) message, targetJavaType);
+		if (message instanceof TextMessage textMessage) {
+			return convertFromTextMessage(textMessage, targetJavaType);
 		}
-		else if (message instanceof BytesMessage) {
-			return convertFromBytesMessage((BytesMessage) message, targetJavaType);
+		else if (message instanceof BytesMessage bytesMessage) {
+			return convertFromBytesMessage(bytesMessage, targetJavaType);
 		}
 		else {
 			return convertFromMessage(message, targetJavaType);
@@ -476,11 +490,11 @@ public class MappingJackson2MessageConverter implements SmartMessageConverter, B
 			}
 			return extractViewClass(annotation, conversionHint);
 		}
-		else if (conversionHint instanceof JsonView) {
-			return extractViewClass((JsonView) conversionHint, conversionHint);
+		else if (conversionHint instanceof JsonView jsonView) {
+			return extractViewClass(jsonView, conversionHint);
 		}
-		else if (conversionHint instanceof Class) {
-			return (Class<?>) conversionHint;
+		else if (conversionHint instanceof Class<?> clazz) {
+			return clazz;
 		}
 		else {
 			return null;

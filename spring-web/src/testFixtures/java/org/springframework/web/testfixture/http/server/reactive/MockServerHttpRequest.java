@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -55,8 +55,6 @@ import org.springframework.web.util.UriComponentsBuilder;
  */
 public final class MockServerHttpRequest extends AbstractServerHttpRequest {
 
-	private final HttpMethod httpMethod;
-
 	private final MultiValueMap<String, HttpCookie> cookies;
 
 	@Nullable
@@ -75,8 +73,7 @@ public final class MockServerHttpRequest extends AbstractServerHttpRequest {
 			@Nullable InetSocketAddress localAddress, @Nullable InetSocketAddress remoteAddress,
 			@Nullable SslInfo sslInfo, Publisher<? extends DataBuffer> body) {
 
-		super(uri, contextPath, headers);
-		this.httpMethod = httpMethod;
+		super(httpMethod, uri, contextPath, headers);
 		this.cookies = cookies;
 		this.localAddress = localAddress;
 		this.remoteAddress = remoteAddress;
@@ -84,17 +81,6 @@ public final class MockServerHttpRequest extends AbstractServerHttpRequest {
 		this.body = Flux.from(body);
 	}
 
-
-	@Override
-	public HttpMethod getMethod() {
-		return this.httpMethod;
-	}
-
-	@Override
-	@Deprecated
-	public String getMethodValue() {
-		return this.httpMethod.name();
-	}
 
 	@Override
 	@Nullable
@@ -231,7 +217,7 @@ public final class MockServerHttpRequest extends AbstractServerHttpRequest {
 	}
 
 	/**
-	 * Create a builder with a raw HTTP method value value that is outside the
+	 * Create a builder with a raw HTTP method value that is outside the
 	 * range of {@link HttpMethod} enum values.
 	 * @param httpMethod the HTTP methodValue value
 	 * @param uri the URI template for target the URL
@@ -253,7 +239,7 @@ public final class MockServerHttpRequest extends AbstractServerHttpRequest {
 
 	/**
 	 * Request builder exposing properties not related to the body.
-	 * @param <B> the builder sub-class
+	 * @param <B> the builder subclass
 	 */
 	public interface BaseBuilder<B extends BaseBuilder<B>> {
 
@@ -359,6 +345,12 @@ public final class MockServerHttpRequest extends AbstractServerHttpRequest {
 		 * @see HttpHeaders#setIfUnmodifiedSince(long)
 		 */
 		B ifUnmodifiedSince(long ifUnmodifiedSince);
+
+		/**
+		 * Set the values of the {@code If-Match} header.
+		 * @param ifMatches the new value of the header
+		 */
+		B ifMatch(String... ifMatches);
 
 		/**
 		 * Set the values of the {@code If-None-Match} header.
@@ -553,6 +545,12 @@ public final class MockServerHttpRequest extends AbstractServerHttpRequest {
 		@Override
 		public BodyBuilder ifUnmodifiedSince(long ifUnmodifiedSince) {
 			this.headers.setIfUnmodifiedSince(ifUnmodifiedSince);
+			return this;
+		}
+
+		@Override
+		public BodyBuilder ifMatch(String... ifMatches) {
+			this.headers.setIfMatch(Arrays.asList(ifMatches));
 			return this;
 		}
 

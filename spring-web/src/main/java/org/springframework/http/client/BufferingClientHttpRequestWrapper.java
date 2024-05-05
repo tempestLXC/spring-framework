@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,10 +17,12 @@
 package org.springframework.http.client;
 
 import java.io.IOException;
+import java.io.OutputStream;
 import java.net.URI;
 
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.StreamingHttpOutputMessage;
 import org.springframework.util.StreamUtils;
 
 /**
@@ -45,12 +47,6 @@ final class BufferingClientHttpRequestWrapper extends AbstractBufferingClientHtt
 	}
 
 	@Override
-	@Deprecated
-	public String getMethodValue() {
-		return this.request.getMethodValue();
-	}
-
-	@Override
 	public URI getURI() {
 		return this.request.getURI();
 	}
@@ -58,7 +54,26 @@ final class BufferingClientHttpRequestWrapper extends AbstractBufferingClientHtt
 	@Override
 	protected ClientHttpResponse executeInternal(HttpHeaders headers, byte[] bufferedOutput) throws IOException {
 		this.request.getHeaders().putAll(headers);
-		StreamUtils.copy(bufferedOutput, this.request.getBody());
+
+		if (bufferedOutput.length > 0) {
+			if (this.request instanceof StreamingHttpOutputMessage streamingHttpOutputMessage) {
+				streamingHttpOutputMessage.setBody(new StreamingHttpOutputMessage.Body() {
+					@Override
+					public void writeTo(OutputStream outputStream) throws IOException {
+						StreamUtils.copy(bufferedOutput, outputStream);
+					}
+
+					@Override
+					public boolean repeatable() {
+						return true;
+					}
+				});
+			}
+			else {
+				StreamUtils.copy(bufferedOutput, this.request.getBody());
+			}
+		}
+
 		ClientHttpResponse response = this.request.execute();
 		return new BufferingClientHttpResponseWrapper(response);
 	}

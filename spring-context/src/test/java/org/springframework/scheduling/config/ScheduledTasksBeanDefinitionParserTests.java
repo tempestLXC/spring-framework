@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2019 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,8 @@
 package org.springframework.scheduling.config;
 
 import java.lang.reflect.Method;
-import java.util.Date;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -47,7 +48,7 @@ public class ScheduledTasksBeanDefinitionParserTests {
 
 
 	@BeforeEach
-	public void setup() {
+	void setup() {
 		this.context = new ClassPathXmlApplicationContext(
 				"scheduledTasksContext.xml", ScheduledTasksBeanDefinitionParserTests.class);
 		this.registrar = this.context.getBeansOfType(
@@ -56,14 +57,14 @@ public class ScheduledTasksBeanDefinitionParserTests {
 	}
 
 	@Test
-	public void checkScheduler() {
+	void checkScheduler() {
 		Object schedulerBean = this.context.getBean("testScheduler");
 		Object schedulerRef = new DirectFieldAccessor(this.registrar).getPropertyValue("taskScheduler");
 		assertThat(schedulerRef).isEqualTo(schedulerBean);
 	}
 
 	@Test
-	public void checkTarget() {
+	void checkTarget() {
 		List<IntervalTask> tasks = (List<IntervalTask>) new DirectFieldAccessor(
 				this.registrar).getPropertyValue("fixedRateTasks");
 		Runnable runnable = tasks.get(0).getRunnable();
@@ -75,39 +76,39 @@ public class ScheduledTasksBeanDefinitionParserTests {
 	}
 
 	@Test
-	public void fixedRateTasks() {
+	void fixedRateTasks() {
 		List<IntervalTask> tasks = (List<IntervalTask>) new DirectFieldAccessor(
 				this.registrar).getPropertyValue("fixedRateTasks");
-		assertThat(tasks.size()).isEqualTo(3);
-		assertThat(tasks.get(0).getInterval()).isEqualTo(1000L);
-		assertThat(tasks.get(1).getInterval()).isEqualTo(2000L);
-		assertThat(tasks.get(2).getInterval()).isEqualTo(4000L);
-		assertThat(tasks.get(2).getInitialDelay()).isEqualTo(500);
+		assertThat(tasks).hasSize(3);
+		assertThat(tasks.get(0).getIntervalDuration()).isEqualTo(Duration.ofMillis(1000L));
+		assertThat(tasks.get(1).getIntervalDuration()).isEqualTo(Duration.ofMillis(2000L));
+		assertThat(tasks.get(2).getIntervalDuration()).isEqualTo(Duration.ofMillis(4000L));
+		assertThat(tasks.get(2).getInitialDelayDuration()).isEqualTo(Duration.ofMillis(500));
 	}
 
 	@Test
-	public void fixedDelayTasks() {
+	void fixedDelayTasks() {
 		List<IntervalTask> tasks = (List<IntervalTask>) new DirectFieldAccessor(
 				this.registrar).getPropertyValue("fixedDelayTasks");
-		assertThat(tasks.size()).isEqualTo(2);
-		assertThat(tasks.get(0).getInterval()).isEqualTo(3000L);
-		assertThat(tasks.get(1).getInterval()).isEqualTo(3500L);
-		assertThat(tasks.get(1).getInitialDelay()).isEqualTo(250);
+		assertThat(tasks).hasSize(2);
+		assertThat(tasks.get(0).getIntervalDuration()).isEqualTo(Duration.ofMillis(3000L));
+		assertThat(tasks.get(1).getIntervalDuration()).isEqualTo(Duration.ofMillis(3500L));
+		assertThat(tasks.get(1).getInitialDelayDuration()).isEqualTo(Duration.ofMillis(250));
 	}
 
 	@Test
-	public void cronTasks() {
+	void cronTasks() {
 		List<CronTask> tasks = (List<CronTask>) new DirectFieldAccessor(
 				this.registrar).getPropertyValue("cronTasks");
-		assertThat(tasks.size()).isEqualTo(1);
+		assertThat(tasks).hasSize(1);
 		assertThat(tasks.get(0).getExpression()).isEqualTo("*/4 * 9-17 * * MON-FRI");
 	}
 
 	@Test
-	public void triggerTasks() {
+	void triggerTasks() {
 		List<TriggerTask> tasks = (List<TriggerTask>) new DirectFieldAccessor(
 				this.registrar).getPropertyValue("triggerTasks");
-		assertThat(tasks.size()).isEqualTo(1);
+		assertThat(tasks).hasSize(1);
 		assertThat(tasks.get(0).getTrigger()).isInstanceOf(TestTrigger.class);
 	}
 
@@ -122,7 +123,7 @@ public class ScheduledTasksBeanDefinitionParserTests {
 	static class TestTrigger implements Trigger {
 
 		@Override
-		public Date nextExecutionTime(TriggerContext triggerContext) {
+		public Instant nextExecution(TriggerContext triggerContext) {
 			return null;
 		}
 	}

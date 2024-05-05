@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,9 +18,13 @@ package org.springframework.context.support;
 
 import java.io.IOException;
 import java.lang.reflect.Constructor;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 
+import org.springframework.aot.hint.RuntimeHints;
+import org.springframework.aot.hint.support.ClassHintUtils;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.BeanDefinitionStoreException;
@@ -29,12 +33,14 @@ import org.springframework.beans.factory.config.AutowireCapableBeanFactory;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.beans.factory.config.BeanDefinitionCustomizer;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
+import org.springframework.beans.factory.config.SmartInstantiationAwareBeanPostProcessor;
 import org.springframework.beans.factory.support.BeanDefinitionRegistry;
 import org.springframework.beans.factory.support.BeanDefinitionRegistryPostProcessor;
 import org.springframework.beans.factory.support.DefaultListableBeanFactory;
 import org.springframework.beans.factory.support.MergedBeanDefinitionPostProcessor;
 import org.springframework.beans.factory.support.RootBeanDefinition;
 import org.springframework.context.ApplicationContext;
+import org.springframework.core.io.ProtocolResolver;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
 import org.springframework.core.io.support.ResourcePatternResolver;
@@ -63,7 +69,7 @@ import org.springframework.util.Assert;
  * definitions on it. {@link #refresh()} may only be called once.
  *
  * <p>This ApplicationContext implementation is suitable for Ahead of Time
- * processing, using {@link #refreshForAotProcessing()} as an alternative to the
+ * processing, using {@link #refreshForAotProcessing} as an alternative to the
  * regular {@link #refresh()}.
  *
  * <p>Usage example:
@@ -79,20 +85,18 @@ import org.springframework.util.Assert;
  * MyBean myBean = (MyBean) ctx.getBean("myBean");
  * ...</pre>
  *
- * For the typical case of XML bean definitions, simply use
+ * For the typical case of XML bean definitions, you may also use
  * {@link ClassPathXmlApplicationContext} or {@link FileSystemXmlApplicationContext},
  * which are easier to set up - but less flexible, since you can just use standard
  * resource locations for XML bean definitions, rather than mixing arbitrary bean
- * definition formats. The equivalent in a web environment is
- * {@link org.springframework.web.context.support.XmlWebApplicationContext}.
- *
- * <p>For custom application context implementations that are supposed to read
- * special bean definition formats in a refreshable manner, consider deriving
- * from the {@link AbstractRefreshableApplicationContext} base class.
+ * definition formats. For a custom application context implementation supposed to
+ * read a specific bean definition format in a refreshable manner, consider
+ * deriving from the {@link AbstractRefreshableApplicationContext} base class.
  *
  * @author Juergen Hoeller
  * @author Chris Beams
  * @author Stephane Nicoll
+ * @author Sam Brannen
  * @since 1.1.2
  * @see #registerBeanDefinition
  * @see #refresh()
@@ -223,13 +227,23 @@ public class GenericApplicationContext extends AbstractApplicationContext implem
 	//---------------------------------------------------------------------
 
 	/**
-	 * This implementation delegates to this context's ResourceLoader if set,
-	 * falling back to the default superclass behavior else.
-	 * @see #setResourceLoader
+	 * This implementation delegates to this context's {@code ResourceLoader} if set,
+	 * falling back to the default superclass behavior otherwise.
+	 * <p>As of Spring Framework 5.3.22, this method also honors registered
+	 * {@linkplain #getProtocolResolvers() protocol resolvers} when a custom
+	 * {@code ResourceLoader} has been set.
+	 * @see #setResourceLoader(ResourceLoader)
+	 * @see #addProtocolResolver(ProtocolResolver)
 	 */
 	@Override
 	public Resource getResource(String location) {
 		if (this.resourceLoader != null) {
+			for (ProtocolResolver protocolResolver : getProtocolResolvers()) {
+				Resource resource = protocolResolver.resolve(location, this);
+				if (resource != null) {
+					return resource;
+				}
+			}
 			return this.resourceLoader.getResource(location);
 		}
 		return super.getResource(location);
@@ -238,13 +252,13 @@ public class GenericApplicationContext extends AbstractApplicationContext implem
 	/**
 	 * This implementation delegates to this context's ResourceLoader if it
 	 * implements the ResourcePatternResolver interface, falling back to the
-	 * default superclass behavior else.
+	 * default superclass behavior otherwise.
 	 * @see #setResourceLoader
 	 */
 	@Override
 	public Resource[] getResources(String locationPattern) throws IOException {
-		if (this.resourceLoader instanceof ResourcePatternResolver) {
-			return ((ResourcePatternResolver) this.resourceLoader).getResources(locationPattern);
+		if (this.resourceLoader instanceof ResourcePatternResolver resourcePatternResolver) {
+			return resourcePatternResolver.getResources(locationPattern);
 		}
 		return super.getResources(locationPattern);
 	}
@@ -284,7 +298,7 @@ public class GenericApplicationContext extends AbstractApplicationContext implem
 	}
 
 	@Override
-	protected void cancelRefresh(BeansException ex) {
+	protected void cancelRefresh(Throwable ex) {
 		this.beanFactory.setSerializationId(null);
 		super.cancelRefresh(ex);
 	}
@@ -348,6 +362,11 @@ public class GenericApplicationContext extends AbstractApplicationContext implem
 	}
 
 	@Override
+	public boolean isBeanDefinitionOverridable(String beanName) {
+		return this.beanFactory.isBeanDefinitionOverridable(beanName);
+	}
+
+	@Override
 	public boolean isBeanNameInUse(String beanName) {
 		return this.beanFactory.isBeanNameInUse(beanName);
 	}
@@ -376,16 +395,17 @@ public class GenericApplicationContext extends AbstractApplicationContext implem
 	 * Load or refresh the persistent representation of the configuration up to
 	 * a point where the underlying bean factory is ready to create bean
 	 * instances.
-	 * <p>This variant of {@link #refresh()} is used by Ahead of Time processing
-	 * that optimizes the application context, typically at build-time.
+	 * <p>This variant of {@link #refresh()} is used by Ahead of Time (AOT)
+	 * processing that optimizes the application context, typically at build time.
 	 * <p>In this mode, only {@link BeanDefinitionRegistryPostProcessor} and
 	 * {@link MergedBeanDefinitionPostProcessor} are invoked.
+	 * @param runtimeHints the runtime hints
 	 * @throws BeansException if the bean factory could not be initialized
 	 * @throws IllegalStateException if already initialized and multiple refresh
 	 * attempts are not supported
 	 * @since 6.0
 	 */
-	public void refreshForAotProcessing() {
+	public void refreshForAotProcessing(RuntimeHints runtimeHints) {
 		if (logger.isDebugEnabled()) {
 			logger.debug("Preparing bean factory for AOT processing");
 		}
@@ -394,8 +414,57 @@ public class GenericApplicationContext extends AbstractApplicationContext implem
 		prepareBeanFactory(this.beanFactory);
 		postProcessBeanFactory(this.beanFactory);
 		invokeBeanFactoryPostProcessors(this.beanFactory);
+		this.beanFactory.freezeConfiguration();
 		PostProcessorRegistrationDelegate.invokeMergedBeanDefinitionPostProcessors(this.beanFactory);
+		preDetermineBeanTypes(runtimeHints);
 	}
+
+	/**
+	 * Pre-determine bean types in order to trigger early proxy class creation.
+	 * @see org.springframework.beans.factory.BeanFactory#getType
+	 * @see SmartInstantiationAwareBeanPostProcessor#determineBeanType
+	 */
+	private void preDetermineBeanTypes(RuntimeHints runtimeHints) {
+		List<SmartInstantiationAwareBeanPostProcessor> bpps =
+				PostProcessorRegistrationDelegate.loadBeanPostProcessors(
+						this.beanFactory, SmartInstantiationAwareBeanPostProcessor.class);
+
+		List<String> lazyBeans = new ArrayList<>();
+
+		// First round: non-lazy singleton beans in definition order,
+		// matching preInstantiateSingletons.
+		for (String beanName : this.beanFactory.getBeanDefinitionNames()) {
+			BeanDefinition bd = getBeanDefinition(beanName);
+			if (bd.isSingleton() && !bd.isLazyInit()) {
+				preDetermineBeanType(beanName, bpps, runtimeHints);
+			}
+			else {
+				lazyBeans.add(beanName);
+			}
+		}
+
+		// Second round: lazy singleton beans and scoped beans.
+		for (String beanName : lazyBeans) {
+			preDetermineBeanType(beanName, bpps, runtimeHints);
+		}
+	}
+
+	private void preDetermineBeanType(String beanName, List<SmartInstantiationAwareBeanPostProcessor> bpps,
+			RuntimeHints runtimeHints) {
+
+		Class<?> beanType = this.beanFactory.getType(beanName);
+		if (beanType != null) {
+			ClassHintUtils.registerProxyIfNecessary(beanType, runtimeHints);
+			for (SmartInstantiationAwareBeanPostProcessor bpp : bpps) {
+				Class<?> newBeanType = bpp.determineBeanType(beanType, beanName);
+				if (newBeanType != beanType) {
+					ClassHintUtils.registerProxyIfNecessary(newBeanType, runtimeHints);
+					beanType = newBeanType;
+				}
+			}
+		}
+	}
+
 
 	//---------------------------------------------------------------------
 	// Convenient methods for registering individual beans
@@ -516,7 +585,7 @@ public class GenericApplicationContext extends AbstractApplicationContext implem
 
 
 	/**
-	 * {@link RootBeanDefinition} marker subclass for {@code #registerBean} based
+	 * {@link RootBeanDefinition} subclass for {@code #registerBean} based
 	 * registrations with flexible autowiring for public constructors.
 	 */
 	@SuppressWarnings("serial")
@@ -533,6 +602,10 @@ public class GenericApplicationContext extends AbstractApplicationContext implem
 		@Override
 		@Nullable
 		public Constructor<?>[] getPreferredConstructors() {
+			Constructor<?>[] fromAttribute = super.getPreferredConstructors();
+			if (fromAttribute != null) {
+				return fromAttribute;
+			}
 			Class<?> clazz = getBeanClass();
 			Constructor<?> primaryCtor = BeanUtils.findPrimaryConstructor(clazz);
 			if (primaryCtor != null) {
